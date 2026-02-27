@@ -1,0 +1,1378 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Intellect Copytrading</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@300;400;500;600&display=swap');
+:root{--bg:#080b10;--s1:#0d1117;--s2:#111820;--s3:#162030;--border:#1c2d40;--border2:#243a52;--green:#00e5a0;--green2:#00b87a;--red:#ff4560;--yellow:#ffc233;--blue:#38b6ff;--purple:#a78bfa;--text:#ddeeff;--muted:#4a7090;}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'IBM Plex Mono',monospace;min-height:100vh}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 80% 50% at 50% -20%,rgba(0,229,160,.06) 0%,transparent 60%),radial-gradient(ellipse 50% 40% at 100% 80%,rgba(56,182,255,.04) 0%,transparent 60%);pointer-events:none;z-index:0}
+.app{position:relative;z-index:1;display:grid;grid-template-columns:240px 1fr;min-height:100vh}
+.sidebar{background:var(--s1);border-right:1px solid var(--border);padding:1.6rem 1.2rem;display:flex;flex-direction:column;gap:1.6rem;position:sticky;top:0;height:100vh;overflow-y:auto}
+.logo{font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:2px;color:var(--green);line-height:1.1}
+.logo span{color:var(--text);font-size:.75rem;letter-spacing:2px;display:block;margin-top:2px}
+.slabel{font-size:.58rem;text-transform:uppercase;letter-spacing:3px;color:var(--muted);margin-bottom:.7rem}
+.bot-list{display:flex;flex-direction:column;gap:.35rem}
+.bot-item{display:flex;align-items:center;gap:.55rem;padding:.55rem .7rem;border-radius:7px;border:1px solid transparent;cursor:pointer;transition:all .2s;font-size:.75rem}
+.bot-item:hover{background:var(--s3);border-color:var(--border)}
+.bot-item.active{background:rgba(0,229,160,.08);border-color:rgba(0,229,160,.3);color:var(--green)}
+.bot-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.bot-roi{margin-left:auto;font-size:.66rem}
+.sstat{display:flex;flex-direction:column;gap:.55rem}
+.srow{display:flex;justify-content:space-between;align-items:center;font-size:.7rem}
+.sv{font-weight:600}.sv.g{color:var(--green)}.sv.r{color:var(--red)}.sv.b{color:var(--blue)}.sv.y{color:var(--yellow)}.sv.p{color:var(--purple)}
+.main{padding:1.8rem;display:flex;flex-direction:column;gap:1.2rem;overflow-x:hidden}
+.topbar{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.8rem}
+.topbar-title{font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:2px}
+.topbar-title span{color:var(--green)}
+.filter-bar{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}
+.fbtn{background:var(--s2);border:1px solid var(--border);border-radius:6px;color:var(--muted);font-family:'IBM Plex Mono',monospace;font-size:.68rem;padding:.35rem .8rem;cursor:pointer;transition:all .2s;letter-spacing:1px}
+.fbtn:hover,.fbtn.active{background:var(--s3);border-color:var(--green2);color:var(--green)}
+select.fbtn{appearance:none;padding-right:1.2rem;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%234a7090'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right .4rem center}
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:.8rem}
+.kpi{background:var(--s1);border:1px solid var(--border);border-radius:10px;padding:1rem 1.1rem;position:relative;overflow:hidden}
+.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.kpi.g::before{background:linear-gradient(90deg,var(--green),transparent)}
+.kpi.b::before{background:linear-gradient(90deg,var(--blue),transparent)}
+.kpi.y::before{background:linear-gradient(90deg,var(--yellow),transparent)}
+.kpi.r::before{background:linear-gradient(90deg,var(--red),transparent)}
+.kpi.p::before{background:linear-gradient(90deg,var(--purple),transparent)}
+.kpi-label{font-size:.6rem;text-transform:uppercase;letter-spacing:2px;color:var(--muted);margin-bottom:.4rem}
+.kpi-val{font-family:'Bebas Neue',sans-serif;font-size:1.8rem;letter-spacing:1px}
+.kpi-val.g{color:var(--green)}.kpi-val.r{color:var(--red)}.kpi-val.b{color:var(--blue)}.kpi-val.y{color:var(--yellow)}.kpi-val.p{color:var(--purple)}
+.kpi-sub{font-size:.62rem;color:var(--muted);margin-top:.3rem}
+.charts-row{display:grid;grid-template-columns:1fr 340px;gap:1rem}
+.card{background:var(--s1);border:1px solid var(--border);border-radius:10px;padding:1.2rem}
+.card-title{font-size:.65rem;text-transform:uppercase;letter-spacing:2px;color:var(--muted);margin-bottom:1rem}
+.wr-row{display:flex;align-items:center;gap:.6rem;margin-bottom:.6rem;font-size:.7rem}
+.wr-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.wr-name{width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wr-bar-wrap{flex:1;background:var(--s3);border-radius:3px;height:6px;overflow:hidden}
+.wr-bar{height:100%;border-radius:3px;transition:width .6s}
+.wr-pct{width:42px;text-align:right;font-weight:600}
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.7rem}
+thead th{font-size:.58rem;text-transform:uppercase;letter-spacing:2px;color:var(--muted);padding:.6rem .8rem;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap}
+tbody tr{border-bottom:1px solid var(--border2);transition:background .15s}
+tbody tr:hover{background:var(--s2)}
+tbody td{padding:.55rem .8rem;white-space:nowrap}
+/* EDITING ROW */
+tbody tr.editing-row{background:rgba(0,229,160,.04)!important;border:1px solid rgba(0,229,160,.25);}
+tbody tr.editing-row td{padding:.3rem .4rem;}
+.edit-input{background:var(--s3);border:1px solid var(--border2);border-radius:5px;color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:.68rem;padding:.3rem .5rem;outline:none;width:100%;transition:border .2s;min-width:60px;}
+.edit-input:focus{border-color:var(--green2);}
+.edit-input.wide{min-width:140px;}
+.edit-input.date-inp{min-width:110px;}
+.btn-edit{background:none;border:none;color:var(--muted);cursor:pointer;font-size:.75rem;padding:0 .25rem;transition:color .2s;line-height:1}
+.btn-edit:hover{color:var(--blue)}
+.btn-save-row{background:linear-gradient(135deg,var(--green2),var(--green));color:#080b10;font-family:'IBM Plex Mono',monospace;font-size:.62rem;font-weight:600;border:none;border-radius:5px;padding:.28rem .65rem;cursor:pointer;white-space:nowrap;}
+.btn-cancel-row{background:var(--s2);border:1px solid var(--border);border-radius:5px;color:var(--muted);font-family:'IBM Plex Mono',monospace;font-size:.62rem;padding:.28rem .55rem;cursor:pointer;white-space:nowrap;}
+.btn-cancel-row:hover{color:var(--text)}
+.badge{display:inline-flex;align-items:center;padding:.15rem .55rem;border-radius:4px;font-size:.62rem;font-weight:600;letter-spacing:1px}
+.badge.win{background:rgba(0,229,160,.12);color:var(--green)}
+.badge.loss{background:rgba(255,69,96,.12);color:var(--red)}
+.badge.void{background:rgba(74,112,144,.12);color:var(--muted)}
+.btn-del{background:none;border:none;color:var(--muted);cursor:pointer;font-size:.8rem;padding:0 .3rem;transition:color .2s}
+.btn-del:hover{color:var(--red)}
+.action-btns{display:flex;gap:.3rem;align-items:center}
+.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.7rem;margin-bottom:.9rem}
+.form-field{display:flex;flex-direction:column;gap:.3rem}
+.form-field label{font-size:.6rem;text-transform:uppercase;letter-spacing:2px;color:var(--muted)}
+.form-field input,.form-field select{background:var(--s2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:.72rem;padding:.45rem .7rem;outline:none;transition:border .2s}
+.form-field input:focus,.form-field select:focus{border-color:var(--green2)}
+.btn-row{display:flex;gap:.7rem;align-items:center;flex-wrap:wrap}
+.btn-add{background:linear-gradient(135deg,var(--green2),var(--green));color:#080b10;font-family:'IBM Plex Mono',monospace;font-size:.72rem;font-weight:600;letter-spacing:1px;border:none;border-radius:7px;padding:.55rem 1.4rem;cursor:pointer;transition:opacity .2s}
+.btn-add:hover{opacity:.85}
+.btn-danger{background:var(--s2);border:1px solid var(--border);border-radius:7px;color:var(--red);font-family:'IBM Plex Mono',monospace;font-size:.68rem;padding:.5rem 1rem;cursor:pointer;transition:all .2s;letter-spacing:1px}
+.btn-danger:hover{border-color:var(--red);background:rgba(255,69,96,.08)}
+.save-ind{font-size:.62rem;color:var(--green2);opacity:0;transition:opacity .4s}
+.save-ind.show{opacity:1}
+.pagination{display:flex;justify-content:flex-end;align-items:center;gap:.5rem;margin-top:.8rem;font-size:.68rem;color:var(--muted)}
+.page-btn{background:var(--s2);border:1px solid var(--border);border-radius:5px;color:var(--muted);font-family:'IBM Plex Mono',monospace;font-size:.68rem;padding:.3rem .65rem;cursor:pointer;transition:all .2s}
+.page-btn:hover,.page-btn.active{border-color:var(--green2);color:var(--green)}
+.empty-state{text-align:center;color:var(--muted);font-size:.72rem;padding:2rem}
+.edit-hint{font-size:.58rem;color:var(--muted);letter-spacing:1px;margin-left:auto}
+.edit-hint span{color:var(--blue);opacity:.7}
+/* toast */
+.toast{position:fixed;bottom:1.5rem;right:1.5rem;background:var(--s3);border:1px solid var(--green2);border-radius:8px;padding:.7rem 1.2rem;font-size:.7rem;color:var(--green);z-index:9999;transform:translateY(20px);opacity:0;transition:all .3s;pointer-events:none}
+.toast.show{transform:translateY(0);opacity:1}
+@media(max-width:900px){.app{grid-template-columns:1fr}.sidebar{position:relative;height:auto}.charts-row{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="toast" id="toast"></div>
+<div class="app">
+<aside class="sidebar">
+  <div><div class="logo">INTELLECT<span>COPYTRADING</span></div></div>
+  <div><div class="slabel">Estratégias</div><div class="bot-list" id="botList"></div></div>
+  <div><div class="slabel">Resumo Geral</div><div class="sstat" id="sideStats"></div></div>
+</aside>
+<main class="main">
+  <div class="topbar">
+    <div class="topbar-title">PAINEL <span>OPERAÇÕES</span></div>
+    <div class="filter-bar">
+      <select class="fbtn" id="fPeriod">
+        <option value="all">Todo período</option>
+        <option value="30">Últimos 30d</option>
+        <option value="7">Últimos 7d</option>
+      </select>
+      <select class="fbtn" id="fBot"><option value="all">Todas as Estratégias</option></select>
+      <select class="fbtn" id="fComp"><option value="all">Todas as Competições</option></select>
+      <select class="fbtn" id="fRes">
+        <option value="all">Todos</option>
+        <option value="win">Win</option>
+        <option value="loss">Loss</option>
+        <option value="void">Void</option>
+      </select>
+    </div>
+  </div>
+  <div class="kpi-grid">
+    <div class="kpi g"><div class="kpi-label">Lucro Líquido</div><div class="kpi-val g" id="kLucro">R$ 0</div><div class="kpi-sub" id="kLucroSub">—</div></div>
+    <div class="kpi b"><div class="kpi-label">ROI</div><div class="kpi-val b" id="kROI">0%</div><div class="kpi-sub" id="kROISub">—</div></div>
+    <div class="kpi y"><div class="kpi-label">Win Rate</div><div class="kpi-val y" id="kWR">0%</div><div class="kpi-sub" id="kWRSub">—</div></div>
+    <div class="kpi r"><div class="kpi-label">Drawdown Máx.</div><div class="kpi-val r" id="kDD">0%</div><div class="kpi-sub">queda máx. do pico</div></div>
+    <div class="kpi p"><div class="kpi-label">Yield</div><div class="kpi-val p" id="kYield">0%</div><div class="kpi-sub" id="kYieldSub">—</div></div>
+  </div>
+  <div class="charts-row">
+    <div class="card"><div class="card-title">Capital Acumulado (Lucro Líquido)</div><div style="height:220px"><canvas id="chartCapital"></canvas></div></div>
+    <div class="card"><div class="card-title">ROI por Estratégia (%)</div><div style="height:220px"><canvas id="chartRoi"></canvas></div></div>
+  </div>
+  <div class="card"><div class="card-title" id="wrTrigger" style="user-select:none">Win Rate por Estratégia</div><div id="wrList"></div></div>
+  <div id="adminSection" style="display:none">
+  <div class="card">
+    <div class="card-title">Adicionar Operação</div>
+    <div class="form-grid">
+      <div class="form-field"><label>Data</label><input type="date" id="fData"></div>
+      <div class="form-field"><label>Estratégia</label><input type="text" id="fBotInput" list="botSug" placeholder="ex: Estratégia 01"><datalist id="botSug"></datalist></div>
+      <div class="form-field"><label>Competição</label><input type="text" id="fCompInput" list="compSug" placeholder="ex: Liga MX"><datalist id="compSug"></datalist></div>
+      <div class="form-field"><label>Evento</label><input type="text" id="fEventoInput" placeholder="ex: Time A vs Time B"></div>
+      <div class="form-field"><label>Stake (R$)</label><input type="number" id="fStake" placeholder="50.00" step="0.01"></div>
+      <div class="form-field"><label>Lucro Líquido (R$)</label><input type="number" id="fLucro" placeholder="±0.00" step="0.01"></div>
+      <div class="form-field"><label>Resultado</label><select id="fResultado"><option value="win">Win</option><option value="loss">Loss</option><option value="void">Void</option></select></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn-add" onclick="addOp()">+ Adicionar</button>
+      <span class="save-ind" id="saveInd">✓ Salvo</span>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.5rem">
+      <span>Histórico de Operações</span>
+      <div style="display:flex;gap:.7rem;align-items:center">
+        <span class="edit-hint">clique em <span>✎</span> para editar uma linha</span>
+        <button class="btn-danger" onclick="confirmClear()">⚠ Limpar manuais</button>
+      </div>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>#</th><th>Data</th><th>Estratégia</th><th>Evento</th><th>Competição</th><th>Stake</th><th>Lucro Líq.</th><th>ROI Op.</th><th>Resultado</th><th></th></tr></thead>
+        <tbody id="tblBody"></tbody>
+      </table>
+    </div>
+    <div class="pagination" id="pagination"></div>
+  </div>
+  </div><!-- /adminSection -->
+</main>
+</div>
+
+<script>
+// ============================================================
+// CONFIGURAÇÕES GERAIS
+// ============================================================
+const STORAGE_KEY = 'intellect_extra_ops_v1';
+const EDITS_KEY   = 'intellect_edits_v1';
+const PAGE_SIZE   = 15;
+const BOT_COLORS  = ['#00e5a0','#00cc8e','#00b47d','#00d4b0','#33ebba','#66f0c9','#99f5d8','#b3f7e3'];
+const STRATEGY_ORDER = ['Estratégia 01','Estratégia 02','Estratégia 03','Estratégia 04','Estratégia 05','Estratégia 06','Estratégia 07','Estratégia 08'];
+
+const ALIAS = {
+  'Underzão 1.5' : 'Estratégia 01',
+  'BACK Casa'    : 'Estratégia 02',
+  'Ambas FAV'    : 'Estratégia 03',
+  'LAY FORA'     : 'Estratégia 04',
+  '1.5 ODD2'     : 'Estratégia 05',
+  'Over 1.5'     : 'Estratégia 06',
+  'LAY ZEBRA HT' : 'Estratégia 07',
+  'BACK Casa 2.0': 'Estratégia 08',
+};
+
+// ============================================================
+// ESTRATÉGIA 01 — Underzão 1.5
+// ============================================================
+const RAW = [
+["2026-01-17","Underzão 1.5","Capivariano vs Ponte Preta","Paulista A1 (BRA)",50,-50,"loss"],
+["2026-01-18","Underzão 1.5","Guadalajara vs Querétaro","Liga MX (MEX)",50,-50,"loss"],
+["2026-01-18","Underzão 1.5","Ratchaburi Mitrphol FC vs Nakhonratchasima Mazda FC","Thai Premier League (THA)",50,162.35,"win"],
+["2026-01-18","Underzão 1.5","Csikszereda vs Botoşani","Superliga (ROU)",50,73.54,"win"],
+["2026-01-18","Underzão 1.5","Almere City vs De Graafschap","Eerste Divisie (NLD)",50,-50,"loss"],
+["2026-01-18","Underzão 1.5","VfB Stuttgart vs FC Union Berlin","Germany Bundesliga (DEU)",50,-50,"loss"],
+["2026-01-18","Underzão 1.5","Aberdeen vs Raith Rovers","Scottish Cup (SCO)",50,93.59,"win"],
+["2026-01-18","Underzão 1.5","Larissa vs Aris","Super League (GRC)",50,82.13,"win"],
+["2026-01-18","Underzão 1.5","Atlético Madrid vs Deportivo Alavés","Spain La Liga (ESP)",50,122.24,"win"],
+["2026-01-18","Underzão 1.5","CFR Cluj vs Otelul","Superliga (ROU)",50,58.73,"win"],
+["2026-01-18","Underzão 1.5","Rennes vs Le Havre","France Ligue 1 (FRA)",50,-50,"loss"],
+["2026-01-18","Underzão 1.5","Palermo vs Spezia","Serie B (ITA)",50,59.21,"win"],
+["2026-01-18","Underzão 1.5","Albacete vs Cádiz","La Liga 2 (ESP)",50,68.76,"win"],
+["2026-01-18","Underzão 1.5","Sint-Truiden vs OH Leuven","Pro League (BEL)",50,122.24,"win"],
+["2026-01-18","Underzão 1.5","Dinamo Bucureşti vs Universitatea Cluj","Superliga (ROU)",50,67.33,"win"],
+["2026-01-18","Underzão 1.5","Real Sociedad vs FC Barcelona","Spain La Liga (ESP)",50,-50,"loss"],
+["2026-01-18","Underzão 1.5","Fortaleza vs Maracanã","Cearense 1 (BRA)",50,176.68,"win"],
+["2026-01-18","Underzão 1.5","Pérez Zeledón vs Alajuelense","Primera Division (CRI)",50,-50,"loss"],
+["2026-01-18","Underzão 1.5","Bragantino vs Botafogo SP","Paulista A1 (BRA)",50,-50,"loss"],
+["2026-01-19","Underzão 1.5","Iğdır FK vs Sakaryaspor","1. Lig (TUR)",50,159.01,"win"],
+["2026-01-19","Underzão 1.5","Ajman vs Al Dhafra","UAE Pro League (ARE)",50,-50,"loss"],
+["2026-01-19","Underzão 1.5","Feirense vs Porto II","Liga Portugal 2 (PRT)",50,-50,"loss"],
+["2026-01-19","Underzão 1.5","Cúcuta Deportivo vs Once Caldas","Liga BetPlay (COL)",50,-50,"loss"],
+["2026-01-20","Underzão 1.5","Kaizer Chiefs vs Golden Arrows","Premier League (ZAF)",50,92.64,"win"],
+["2026-01-20","Underzão 1.5","Villarreal vs Ajax","Champions League (Europe)",50,-50,"loss"],
+["2026-01-20","Underzão 1.5","Wrexham vs Leicester City","England Championship (ENG)",50,-50,"loss"],
+["2026-01-21","Underzão 1.5","Newcastle Jets W Women vs Adelaide United W Women","A-League Women (AUS)",50,-50,"loss"],
+["2026-01-21","Underzão 1.5","Al Zulfi vs Al-Jandal","Division 1 (SAU)",50,91.68,"win"],
+["2026-01-21","Underzão 1.5","TS Galaxy vs Marumo Gallants FC","Premier League (ZAF)",50,-50,"loss"],
+["2026-01-21","Underzão 1.5","Southampton vs Sheffield United","Championship (ENG)",50,107.91,"win"],
+["2026-01-21","Underzão 1.5","Internacional vs Inter Santa Maria","Gaucho 1 (BRA)",50,-50,"loss"],
+["2026-01-21","Underzão 1.5","São Luiz vs Novo Hamburgo","Gaucho 1 (BRA)",50,78.31,"win"],
+["2026-01-21","Underzão 1.5","Botafogo vs Volta Redonda","Carioca Serie A (BRA)",50,60.16,"win"],
+["2026-01-22","Underzão 1.5","Flamengo vs Vasco da Gama","Carioca Serie A (BRA)",50,53,"win"],
+["2026-01-22","Underzão 1.5","Feyenoord vs Sturm Graz","Europa League (Europe)",50,-50,"loss"],
+["2026-01-22","Underzão 1.5","PAOK vs Real Betis","Europa League (Europe)",50,-50,"loss"],
+["2026-01-22","Underzão 1.5","Viktoria Plzeň vs Porto","Europa League (Europe)",50,-50,"loss"],
+["2026-01-22","Underzão 1.5","Roma vs VfB Stuttgart","Europa League (Europe)",50,-50,"loss"],
+["2026-01-22","Underzão 1.5","Celta de Vigo vs LOSC Lille","Europa League (Europe)",50,-50,"loss"],
+["2026-01-23","Underzão 1.5","Al Salt vs Al Faysali","Premier League (JOR)",50,-50,"loss"],
+["2026-01-23","Underzão 1.5","Trabzonspor vs Kasımpaşa","Super Lig (TUR)",50,-50,"loss"],
+["2026-01-23","Underzão 1.5","Darmstadt 98 vs Nürnberg","2. Bundesliga (DEU)",50,-50,"loss"],
+["2026-01-23","Underzão 1.5","Pau vs Grenoble Foot 38","Ligue 2 (FRA)",50,-50,"loss"],
+["2026-01-23","Underzão 1.5","FC Dordrecht vs FC Den Bosch","Eerste Divisie (NLD)",50,-50,"loss"],
+["2026-01-23","Underzão 1.5","Willem II vs VVV-Venlo","Eerste Divisie (NLD)",50,-50,"loss"],
+["2026-01-23","Underzão 1.5","Roda JC Kerkrade vs TOP Oss","Eerste Divisie (NLD)",50,-50,"loss"],
+["2026-01-24","Underzão 1.5","Talleres Córdoba vs Newell's Old Boys","Liga Profesional de Fútbol (ARG)",50,-50,"loss"],
+["2026-01-24","Underzão 1.5","Deportes Tolima vs Alianza Petrolera","Liga BetPlay (COL)",50,-50,"loss"],
+["2026-01-24","Underzão 1.5","True Bangkok United vs Chonburi FC","Thai Premier League (THA)",50,154.23,"win"],
+["2026-01-24","Underzão 1.5","Persijap vs PSM","Liga 1 (IDN)",50,-50,"loss"],
+["2026-01-24","Underzão 1.5","Millwall vs Charlton Athletic","England Championship (ENG)",50,-50,"loss"],
+["2026-01-24","Underzão 1.5","Huddersfield Town vs Bradford City","England League 1 (ENG)",50,79.74,"win"],
+["2026-01-24","Underzão 1.5","Plymouth Argyle vs Luton Town","England League 1 (ENG)",50,105.05,"win"],
+["2026-01-24","Underzão 1.5","Notts County vs Crewe Alexandra","League Two (ENG)",50,66.85,"win"],
+["2026-01-24","Underzão 1.5","Frosinone vs Reggiana","Serie B (ITA)",50,99.32,"win"],
+["2026-01-24","Underzão 1.5","Juve Stabia vs Virtus Entella","Serie B (ITA)",50,80.22,"win"],
+["2026-01-24","Underzão 1.5","Bayer 04 Leverkusen vs Werder Bremen","Germany Bundesliga (DEU)",50,153.28,"win"],
+["2026-01-24","Underzão 1.5","The New Saints vs Barry Town United","Premier League (WLS)",50,152.8,"win"],
+["2026-01-24","Underzão 1.5","Rotherham United vs AFC Wimbledon","England League 1 (ENG)",50,-50,"loss"],
+["2026-01-24","Underzão 1.5","Olympiacos F.C. vs Volos NFC","Greece Super League (GRC)",50,140.38,"win"],
+["2026-01-24","Underzão 1.5","Birmingham City vs Stoke City","England Championship (ENG)",50,-50,"loss"],
+["2026-01-24","Underzão 1.5","Bristol City vs Sheffield Wednesday","England Championship (ENG)",50,-50,"loss"],
+["2026-01-24","Underzão 1.5","Leganés vs Real Sociedad II","Spain La Liga 2 (ESP)",50,-50,"loss"],
+["2026-01-24","Underzão 1.5","Aarau vs Bellinzona","Challenge League (CHE)",50,136.09,"win"],
+["2026-01-24","Underzão 1.5","Rapperswil-Jona vs Stade Lausanne-Ouchy","Challenge League (CHE)",50,67.8,"win"],
+["2026-01-24","Underzão 1.5","Larissa vs Panserraikos","Greece Super League (GRC)",50,80.22,"win"],
+["2026-01-24","Underzão 1.5","Spezia vs Avellino","Serie B (ITA)",50,78.31,"win"],
+["2026-01-24","Underzão 1.5","Reims vs Saint-Étienne","Ligue 2 (FRA)",50,62.08,"win"],
+["2026-01-24","Underzão 1.5","Nacional Asunción vs Sportivo San Lorenzo","Division 1 (PRY)",50,48.7,"win"],
+["2026-01-25","Underzão 1.5","Guarany de Bagé vs Inter Santa Maria","Gaucho 1 (BRA)",50,73.54,"win"],
+["2026-01-25","Underzão 1.5","Botafogo vs Bangu","Brazil Carioca (BRA)",50,-50,"loss"],
+["2026-01-25","Underzão 1.5","Rosario Central vs Belgrano","Liga Profesional de Fútbol (ARG)",50,-50,"loss"],
+["2026-01-25","Underzão 1.5","Gaziantep F.K. vs Konyaspor","Super Lig (TUR)",50,-50,"loss"],
+["2026-01-25","Underzão 1.5","Arezzo vs Juventus Next Gen","Serie C: Girone B (ITA)",50,68.28,"win"],
+["2026-01-25","Underzão 1.5","Sassuolo vs Cremonese","Italy Serie A (ITA)",50,44.88,"win"],
+["2026-01-25","Underzão 1.5","Atlético Madrid vs Mallorca","Spain La Liga (ESP)",50,-50,"loss"],
+["2026-01-25","Underzão 1.5","SK Beveren vs Koninklijke Lierse Sportkring","Challenger Pro League (BEL)",50,132.74,"win"],
+["2026-01-25","Underzão 1.5","Genk vs Cercle Brugge","Pro League (BEL)",50,-50,"loss"],
+["2026-01-25","Underzão 1.5","Rangers vs Dundee","Scotland Premiership (SCO)",50,-50,"loss"],
+["2026-01-25","Underzão 1.5","UD Oliveirense vs Penafiel","Liga Portugal 2 (PRT)",50,-50,"loss"],
+["2026-01-25","Underzão 1.5","OFI vs Panaitolikos","Greece Super League (GRC)",50,82.13,"win"],
+["2026-01-25","Underzão 1.5","Manisa BBSK vs İstanbulspor","1. Lig (TUR)",50,75.45,"win"],
+["2026-01-25","Underzão 1.5","Ferencvárosi vs Győri ETO","NB I (HUN)",50,-50,"loss"],
+["2026-01-25","Underzão 1.5","Real Sociedad vs Celta de Vigo","Spain La Liga (ESP)",50,-50,"loss"],
+["2026-01-25","Underzão 1.5","Ashdod vs Beitar Jerusalem","Ligat ha'Al (ISR)",50,-50,"loss"],
+["2026-01-25","Underzão 1.5","Wehen Wiesbaden vs Verl","3. Liga (DEU)",50,-50,"loss"],
+["2026-01-25","Underzão 1.5","Montego Bay United vs Chapelton","Premier League (JAM)",50,-50,"loss"],
+["2026-01-25","Underzão 1.5","Juventude vs Monsoon","Gaucho 1 (BRA)",50,-50,"loss"],
+["2026-01-25","Underzão 1.5","Olimpia vs Guaraní","Division 1 (PRY)",50,-50,"loss"],
+["2026-01-25","Underzão 1.5","Mixco vs Malacateco","Liga Nacional (GTM)",50,42.5,"win"],
+["2026-01-26","Underzão 1.5","Athletic Club vs Betim","Mineiro 1 (BRA)",50,-50,"loss"],
+["2026-01-26","Underzão 1.5","Tombense vs Democrata GV","Mineiro 1 (BRA)",50,-50,"loss"],
+["2026-01-26","Underzão 1.5","Melbourne Victory vs Sydney","A-League Men (AUS)",50,-50,"loss"],
+["2026-01-26","Underzão 1.5","Al Nassr vs Al Taawoun","Pro League (SAU)",50,214.88,"win"],
+["2026-01-26","Underzão 1.5","De Graafschap vs FC Den Bosch","Eerste Divisie (NLD)",50,-50,"loss"],
+["2026-01-26","Underzão 1.5","Le Mans vs Dunkerque","Ligue 2 (FRA)",50,79.74,"win"],
+["2026-01-26","Underzão 1.5","EC São José vs Caxias","Gaucho 1 (BRA)",50,70.19,"win"],
+["2026-01-27","Underzão 1.5","KAS Eupen vs KSC Lokeren","Challenger Pro League (BEL)",50,-50,"loss"],
+["2026-01-27","Underzão 1.5","Bolton Wanderers vs Burton Albion","England League 1 (ENG)",50,-50,"loss"],
+["2026-01-27","Underzão 1.5","Milton Keynes Dons vs Bristol Rovers","League Two (ENG)",50,100.28,"win"],
+["2026-01-28","Underzão 1.5","Union Saint-Gilloise vs Atalanta","Champions League (Europe)",50,67.8,"win"],
+["2026-01-28","Underzão 1.5","Vitória vs Remo","Serie A (BRA)",50,-50,"loss"],
+["2026-01-29","Underzão 1.5","2 de Mayo vs Olimpia","Division 1 (PRY)",50,-50,"loss"],
+["2026-01-29","Underzão 1.5","Shabab Al Ordon vs Al Wihdat","Premier League (JOR)",50,138.47,"win"],
+["2026-01-29","Underzão 1.5","Modern Sport FC vs Ismaily","Premier League (EGY)",50,47.75,"win"],
+["2026-01-29","Underzão 1.5","ÍA vs Afturelding","League Cup (ISL)",50,-50,"loss"],
+["2026-01-29","Underzão 1.5","Ludogorets vs Nice","Europa League (Europe)",50,143.25,"win"],
+["2026-01-29","Underzão 1.5","Panathinaikos vs Roma","Europa League (Europe)",50,-50,"loss"],
+["2026-01-29","Underzão 1.5","Deportivo Táchira vs Academia Anzoátegui","Primera Division (VEN)",50,-50,"loss"],
+["2026-01-29","Underzão 1.5","Rionegro Águilas vs Deportivo Cali","Liga BetPlay (COL)",50,-50,"loss"],
+["2026-01-30","Underzão 1.5","Botafogo vs Cruzeiro","Serie A (BRA)",50,-50,"loss"],
+["2026-01-30","Underzão 1.5","Sarmiento vs Banfield","Liga Profesional de Fútbol (ARG)",50,74.49,"win"],
+["2026-01-30","Underzão 1.5","Adelaide United vs Macarthur","A-League Men (AUS)",50,-50,"loss"],
+["2026-01-30","Underzão 1.5","Al Taawoun vs Al Akhdoud","Pro League (SAU)",50,112.21,"win"],
+["2026-01-30","Underzão 1.5","İstanbulspor vs Hatayspor","1. Lig (TUR)",50,114.6,"win"],
+["2026-01-30","Underzão 1.5","Nürnberg vs Preußen Münster","2. Bundesliga (DEU)",50,-50,"loss"],
+["2026-01-30","Underzão 1.5","Dinamo Bucureşti vs Petrolul 52","Superliga (ROU)",50,-50,"loss"],
+["2026-01-30","Underzão 1.5","Grenoble Foot 38 vs Amiens SC","Ligue 2 (FRA)",50,-50,"loss"],
+["2026-01-30","Underzão 1.5","RKC Waalwijk vs TOP Oss","Eerste Divisie (NLD)",50,-50,"loss"],
+["2026-01-30","Underzão 1.5","FC Köln vs VfL Wolfsburg","Bundesliga (DEU)",50,143.25,"win"],
+["2026-01-30","Underzão 1.5","Lens vs Le Havre","Ligue 1 (FRA)",50,121.76,"win"],
+["2026-01-31","Underzão 1.5","Kitchee vs Southern District","Premier League (HKG)",50,-50,"loss"],
+["2026-01-31","Underzão 1.5","Eintracht Braunschweig vs Karlsruher SC","2. Bundesliga (DEU)",50,133.7,"win"],
+["2026-01-31","Underzão 1.5","Hapoel Tel Aviv vs Maccabi Netanya","Ligat ha'Al (ISR)",50,-50,"loss"],
+["2026-01-31","Underzão 1.5","Jablonec vs Teplice","Chance Liga (CZE)",50,75.45,"win"],
+["2026-01-31","Underzão 1.5","Virtus Entella vs Frosinone","Serie B (ITA)",50,-50,"loss"],
+["2026-01-31","Underzão 1.5","Sigma Olomouc vs Hradec Králové","Chance Liga (CZE)",50,57.3,"win"],
+["2026-01-31","Underzão 1.5","Olimpija vs Mura","1. SNL (SVN)",50,59.21,"win"],
+["2026-01-31","Underzão 1.5","Gorica vs Hajduk Split","1. HNL (HRV)",50,48.7,"win"],
+["2026-01-31","Underzão 1.5","PEC Zwolle vs Telstar","Eredivisie (NLD)",50,-50,"loss"],
+["2026-01-31","Underzão 1.5","Univ. Concepción vs Coquimbo Unido","Primera Division (CHL)",50,72.58,"win"],
+["2026-01-31","Underzão 1.5","Cúcuta Deportivo vs Fortaleza CEIF","Liga BetPlay (COL)",50,-50,"loss"],
+["2026-01-31","Underzão 1.5","Cobresal vs Huachipato","Primera Division (CHL)",50,95.5,"win"],
+["2026-02-01","Underzão 1.5","Atlas vs Mazatlán","Mexico Liga MX (MEX)",50,71.62,"win"],
+["2026-02-01","Underzão 1.5","Sportivo Ameliano vs Sportivo San Lorenzo","Division 1 (PRY)",50,65.89,"win"],
+["2026-02-01","Underzão 1.5","Primavera SP vs Portuguesa","Paulista A1 (BRA)",50,-50,"loss"],
+["2026-02-01","Underzão 1.5","Melgar vs Cienciano","Primera Division (PER)",50,-50,"loss"],
+["2026-02-01","Underzão 1.5","Atlético Tucumán vs Huracán","Liga Profesional de Fútbol (ARG)",50,-50,"loss"],
+["2026-02-01","Underzão 1.5","Isidro Metapán vs Zacatecoluca","Primera Division (SLV)",50,51.57,"win"],
+["2026-02-01","Underzão 1.5","Wofoo Tai Po vs Hong Kong FC","Premier League (HKG)",50,-50,"loss"],
+["2026-02-01","Underzão 1.5","Central Coast Mariners vs Melbourne Victory","A-League Men (AUS)",50,162.35,"win"],
+["2026-02-01","Underzão 1.5","Bandırmaspor vs Vanspor FK","1. Lig (TUR)",50,-50,"loss"],
+["2026-02-01","Underzão 1.5","Torino vs Lecce","Italy Serie A (ITA)",50,90.72,"win"],
+["2026-02-01","Underzão 1.5","Manchester United W Women vs Liverpool W Women","Women's Super League (ENG)",50,-50,"loss"],
+["2026-02-01","Underzão 1.5","Brentford U21 vs Bristol City U21","Professional Development League (ENG)",50,176.68,"win"],
+["2026-02-01","Underzão 1.5","Boluspor vs Sakaryaspor","1. Lig (TUR)",50,-50,"loss"],
+["2026-02-01","Underzão 1.5","Wisła Płock vs Raków Częstochowa","Ekstraklasa (POL)",50,-50,"loss"],
+["2026-02-01","Underzão 1.5","Osijek vs Rijeka","1. HNL (HRV)",50,80.22,"win"],
+["2026-02-01","Underzão 1.5","Celtic vs Falkirk","Premiership (SCO)",50,-50,"loss"],
+["2026-02-01","Underzão 1.5","Young Boys vs Zürich","Super League (CHE)",50,-50,"loss"],
+["2026-02-01","Underzão 1.5","Angers SCO vs Metz","France Ligue 1 (FRA)",50,97.89,"win"],
+["2026-02-01","Underzão 1.5","Al Ittihad vs Al Najma","Pro League (SAU)",50,140.86,"win"],
+["2026-02-01","Underzão 1.5","Union Saint-Gilloise vs Club Brugge","Pro League (BEL)",50,72.58,"win"],
+["2026-02-01","Underzão 1.5","FCSB vs Csikszereda","Superliga (ROU)",50,148.03,"win"],
+["2026-02-01","Underzão 1.5","Hapoel Petah Tikva vs Ashdod","Ligat ha'Al (ISR)",50,-50,"loss"],
+["2026-02-01","Underzão 1.5","Deportivo Garcilaso vs Sporting Cristal","Primera Division (PER)",50,-50,"loss"],
+["2026-02-01","Underzão 1.5","Granada vs Racing Santander","Spain La Liga 2 (ESP)",50,87.86,"win"],
+["2026-02-01","Underzão 1.5","Noroeste vs Velo Clube","Paulista A1 (BRA)",50,-50,"loss"],
+["2026-02-02","Underzão 1.5","Guaraní vs Rubio Ñú","Division 1 (PRY)",50,-50,"loss"],
+["2026-02-02","Underzão 1.5","Palestino vs Ñublense","Primera Division (CHL)",50,-50,"loss"],
+["2026-02-02","Underzão 1.5","Botafogo SP vs Palmeiras","Paulista A1 (BRA)",50,102.66,"win"],
+["2026-02-02","Underzão 1.5","Al Raed vs Al Bukayriyah","Division 1 (SAU)",50,-50,"loss"],
+["2026-02-02","Underzão 1.5","Dinamo Zagreb vs Vukovar","1. HNL (HRV)",50,-50,"loss"],
+["2026-02-02","Underzão 1.5","Esenler Erokspor vs Ümraniyespor","1. Lig (TUR)",50,76.4,"win"],
+["2026-02-02","Underzão 1.5","Al Akhdoud vs NEOM SC","Pro League (SAU)",50,-50,"loss"],
+["2026-02-03","Underzão 1.5","O'Higgins vs Concepcion","Primera Division (CHL)",21,-21,"void"],
+["2026-02-03","Underzão 1.5","Samsunspor vs Bodrum FK","Turkish Cup (TUR)",50,-50,"loss"],
+["2026-02-03","Underzão 1.5","Trabzonspor vs Fethiyespor","Turkish Cup (TUR)",50,-50,"loss"],
+["2026-02-03","Underzão 1.5","Maccabi Haifa vs Kafr Qasim","State Cup (ISR)",50,-50,"loss"],
+["2026-02-03","Underzão 1.5","National Bank of Egypt vs Al Ahly","Premier League (EGY)",50,-50,"loss"],
+["2026-02-03","Underzão 1.5","AZ vs FC Twente","KNVB Beker (NLD)",50,-50,"loss"],
+["2026-02-03","Underzão 1.5","FC Dordrecht vs Helmond Sport","Eerste Divisie (NLD)",50,-50,"loss"],
+["2026-02-04","Underzão 1.5","The Strongest vs Deportivo Táchira","Copa Libertadores (SAmerica)",50,-50,"loss"],
+["2026-02-04","Underzão 1.5","Barranquilla vs Patriotas Boyacá","Torneo Betplay (COL)",50,-50,"loss"],
+["2026-02-04","Underzão 1.5","ZED FC vs Al Masry","Premier League (EGY)",50,-50,"loss"],
+["2026-02-04","Underzão 1.5","Celje vs Radomlje","1. SNL (SVN)",50,-50,"loss"],
+["2026-02-04","Underzão 1.5","Pafos FC vs APOEL","1. Division (CYP)",50,-50,"loss"],
+["2026-02-04","Underzão 1.5","Toulouse vs Amiens SC","Coupe de France (FRA)",50,87.86,"win"],
+["2026-02-04","Underzão 1.5","Rangers vs Kilmarnock","Premiership (SCO)",50,-50,"loss"],
+["2026-02-04","Underzão 1.5","Hibernian vs Dundee United","Premiership (SCO)",50,-50,"loss"],
+["2026-02-04","Underzão 1.5","Cacahuatique vs Firpo","Primera Division (SLV)",50,-50,"loss"],
+["2026-02-04","Underzão 1.5","Bragantino vs Atlético Mineiro","Brazil Serie A (BRA)",50,97.89,"win"],
+["2026-02-05","Underzão 1.5","Al Ahli vs Al Hazm","Pro League (SAU)",50,-50,"loss"],
+["2026-02-05","Underzão 1.5","FCSB vs Botoşani","Superliga (ROU)",50,-50,"loss"],
+["2026-02-05","Underzão 1.5","Atalanta vs Juventus","Coppa Italia (ITA)",50,-50,"loss"],
+["2026-02-06","Underzão 1.5","Vasco da Gama vs Chapecoense","Serie A (BRA)",50,-50,"loss"],
+["2026-02-06","Underzão 1.5","Wellington Phoenix W Women vs Perth Glory W Women","A-League Women (AUS)",50,97.89,"win"],
+["2026-02-06","Underzão 1.5","Şahdağ vs Difai Ağsu","Birinci Dasta (AZE)",50,-50,"loss"],
+["2026-02-06","Underzão 1.5","Al Ettifaq vs Damac FC","Pro League (SAU)",50,-50,"loss"],
+["2026-02-06","Underzão 1.5","Argeş vs Hermannstadt","Superliga (ROU)",50,-50,"loss"],
+["2026-02-06","Underzão 1.5","Korona Kielce vs Zagłębie Lubin","Ekstraklasa (POL)",50,-50,"loss"],
+["2026-02-06","Underzão 1.5","Zrinjski vs Sloga Doboj","Premier Liga (BIH)",50,57.3,"win"],
+["2026-02-06","Underzão 1.5","Annecy vs Grenoble Foot 38","Ligue 2 (FRA)",27,-27,"void"],
+["2026-02-06","Underzão 1.5","Leganés vs Granada","La Liga 2 (ESP)",50,59.21,"win"],
+["2026-02-06","Underzão 1.5","Cesena vs Pescara","Serie B (ITA)",50,-50,"loss"],
+["2026-02-07","Underzão 1.5","Figueirense vs Joinville","Catarinense 1 (BRA)",50,87.86,"win"],
+["2026-02-07","Underzão 1.5","Auckland vs Sydney","A-League Men (AUS)",50,152.8,"win"],
+["2026-02-07","Underzão 1.5","Melbourne Victory W Women vs Newcastle Jets W Women","A-League Women (AUS)",50,-50,"loss"],
+["2026-02-07","Underzão 1.5","Fatih Karagümrük vs Antalyaspor","Super Lig (TUR)",48.5,92.64,"win"],
+["2026-02-07","Underzão 1.5","Schalke 04 vs Dynamo Dresden","2. Bundesliga (DEU)",50,-50,"loss"],
+["2026-02-07","Underzão 1.5","Reading U21 vs Stoke City U21","Premier League 2 Division One (ENG)",50,-50,"loss"],
+["2026-02-07","Underzão 1.5","Manchester United vs Tottenham Hotspur","Premier League (ENG)",50,-50,"loss"],
+["2026-02-07","Underzão 1.5","Power Dynamos vs RSB Berkane","CAF Champions League",50,-50,"loss"],
+["2026-02-07","Underzão 1.5","Osnabrück vs Havelse","3. Liga (DEU)",50,-50,"loss"],
+["2026-02-07","Underzão 1.5","Dibba Al Fujairah vs Bani Yas","UAE Pro League (ARE)",50,-50,"loss"],
+["2026-02-07","Underzão 1.5","Debrecen vs Paksi SE","NB I (HUN)",50,114.6,"win"],
+["2026-02-07","Underzão 1.5","Frosinone vs Venezia","Serie B (ITA)",50,-50,"loss"],
+["2026-02-07","Underzão 1.5","Fulham vs Everton","Premier League (ENG)",50,-50,"loss"],
+["2026-02-07","Underzão 1.5","Arsenal vs Sunderland","Premier League (ENG)",50,-50,"loss"],
+["2026-02-07","Underzão 1.5","FC Barcelona vs Mallorca","Spain La Liga (ESP)",50,-50,"loss"],
+["2026-02-07","Underzão 1.5","Hapoel Jerusalem vs Maccabi Haifa","Ligat ha'Al (ISR)",50,-50,"loss"],
+["2026-02-07","Underzão 1.5","VVV-Venlo vs FC Eindhoven","Eerste Divisie (NLD)",50,116.99,"win"],
+["2026-02-07","Underzão 1.5","Winterthur vs Lugano","Super League (CHE)",50,-50,"loss"],
+["2026-02-07","Underzão 1.5","ADT vs Sport Boys","Primera Division (PER)",50,93.59,"win"],
+["2026-02-07","Underzão 1.5","Brest vs Lorient","Ligue 1 (FRA)",50,-50,"loss"],
+["2026-02-07","Underzão 1.5","K. Beerschot V.A. vs Club NXT U23","Challenger Pro League (BEL)",50,-50,"loss"],
+["2026-02-07","Underzão 1.5","Grêmio vs Novo Hamburgo","Gaucho 1 (BRA)",50,97.89,"win"],
+["2026-02-08","Underzão 1.5","Toluca vs Cruz Azul","Liga MX (MEX)",50,-50,"loss"],
+["2026-02-08","Underzão 1.5","Pachuca vs Juárez","Liga MX (MEX)",50,-50,"loss"],
+["2026-02-08","Underzão 1.5","Belgrano vs Banfield","Liga Profesional de Fútbol (ARG)",50,85.95,"win"],
+["2026-02-08","Underzão 1.5","América vs Monterrey","Liga MX (MEX)",50,61.12,"win"],
+["2026-02-08","Underzão 1.5","Pogoń Szczecin vs Nieciecza","Ekstraklasa (POL)",50,-50,"loss"],
+["2026-02-08","Underzão 1.5","Arsenal W Women vs Manchester City W Women","Women's Super League (ENG)",50,70.67,"win"],
+["2026-02-08","Underzão 1.5","Rheindorf Altach vs Blau-Weiß Linz","Admiral Bundesliga (AUT)",50,39.63,"win"],
+["2026-02-08","Underzão 1.5","AZ vs Ajax","Eredivisie (NLD)",50,-50,"loss"],
+["2026-02-08","Underzão 1.5","Žilina vs Komárno","Niké Liga (SVK)",50,93.59,"win"],
+["2026-02-08","Underzão 1.5","Cartaginés vs Pérez Zeledón","Primera Division (CRI)",50,70.67,"win"],
+["2026-02-08","Underzão 1.5","Sporting Braga vs Rio Ave","Liga Portugal (PRT)",50,-50,"loss"],
+["2026-02-08","Underzão 1.5","Alianza Petrolera vs Once Caldas","Liga BetPlay (COL)",50,-50,"loss"],
+["2026-02-08","Underzão 1.5","Capivariano vs Mirassol","Paulista A1 (BRA)",50,83.08,"win"],
+["2026-02-08","Underzão 1.5","Vasco da Gama vs Botafogo","Carioca Serie A (BRA)",50,-50,"loss"],
+["2026-02-09","Underzão 1.5","Universidad Católica vs Concepcion","Primera Division (CHL)",50,-50,"loss"],
+["2026-02-09","Underzão 1.5","Fluminense vs CFRJ / Marica","Carioca Serie A (BRA)",50,63.03,"win"],
+["2026-02-09","Underzão 1.5","Vélez Sarsfield vs Boca Juniors","Liga Profesional de Fútbol (ARG)",50,-50,"loss"],
+["2026-02-09","Underzão 1.5","Lamphun Warrior vs Kanchanaburi","Thai Premier League (THA)",50,-50,"loss"],
+["2026-02-09","Underzão 1.5","Piast Gliwice vs Wisła Płock","Ekstraklasa (POL)",50,44.41,"win"],
+["2026-02-09","Underzão 1.5","Jong PSV vs TOP Oss","Eerste Divisie (NLD)",50,-50,"loss"],
+["2026-02-09","Underzão 1.5","Racing Santander vs Mirandés","Spain La Liga 2 (ESP)",50,112.21,"win"],
+["2026-02-09","Underzão 1.5","Roma vs Cagliari","Italy Serie A (ITA)",50,-50,"loss"],
+["2026-02-10","Underzão 1.5","Marcílio Dias vs Carlos Renaux","Catarinense 1 (BRA)",50,-50,"loss"],
+["2026-02-10","Underzão 1.5","Neftçi vs Qabala","Premier League (AZE)",50,114.6,"win"],
+["2026-02-10","Underzão 1.5","CSKA Sofia vs CSKA 1948 Sofia","Bulgarian Cup (BGR)",50,-50,"loss"],
+["2026-02-10","Underzão 1.5","Calcio Padova vs Carrarese","Serie B (ITA)",50,107.44,"win"],
+["2026-02-10","Underzão 1.5","Reggiana vs Mantova","Serie B (ITA)",50,79.27,"win"],
+["2026-02-10","Underzão 1.5","Altrincham vs Wealdstone","Enterprise National League (ENG)",50,60.16,"win"],
+["2026-02-11","Underzão 1.5","Deportivo Táchira vs The Strongest","Copa Libertadores (SAmerica)",50,95.5,"win"],
+["2026-02-11","Underzão 1.5","Pumas UNAM vs San Diego","CONCACAF Champions Cup",50,152.8,"win"],
+["2026-02-11","Underzão 1.5","Tigres UANL vs Forge","CONCACAF Champions Cup",50,-50,"loss"],
+["2026-02-11","Underzão 1.5","Ludogorets vs Levski Sofia","Bulgarian Cup (BGR)",50,62.08,"win"],
+["2026-02-11","Underzão 1.5","Go Ahead Eagles vs SC Heerenveen","Eredivisie (NLD)",50,-50,"loss"],
+["2026-02-11","Underzão 1.5","Al Masry vs Wadi Degla","Premier League (EGY)",50,-50,"loss"],
+["2026-02-11","Underzão 1.5","Falkirk vs Dundee","Premiership (SCO)",50,94.55,"win"],
+["2026-02-11","Underzão 1.5","Grimsby Town vs Accrington Stanley","League Two (ENG)",50,92.64,"win"],
+["2026-02-12","Underzão 1.5","Alianza Lima vs 2 de Mayo","Copa Libertadores (SAmerica)",50,-50,"loss"],
+["2026-02-12","Underzão 1.5","Monterrey vs Xelajú","CONCACAF Champions Cup",50,-50,"loss"],
+["2026-02-12","Underzão 1.5","True Bangkok United vs Macarthur","AFC Champions League Two (World)",50,-50,"loss"],
+["2026-02-12","Underzão 1.5","Lokomotiv Plovdiv vs Botev Plovdiv","Bulgarian Cup (BGR)",50,97.89,"win"],
+["2026-02-12","Underzão 1.5","Forlì vs Pontedera","Serie C: Girone B (ITA)",50,-50,"loss"],
+["2026-02-12","Underzão 1.5","FC Den Bosch vs FC Eindhoven","Eerste Divisie (NLD)",50,-50,"loss"],
+["2026-02-13","Underzão 1.5","Fluminense vs Botafogo","Brazil Serie A (BRA)",50,46.79,"win"],
+["2026-02-13","Underzão 1.5","Argentinos Juniors vs River Plate","Liga Profesional de Fútbol (ARG)",50,55.39,"win"],
+["2026-02-13","Underzão 1.5","Western Sydney Wanderers W Women vs Newcastle Jets W Women","A-League Women (AUS)",50,-50,"loss"],
+["2026-02-13","Underzão 1.5","Chonburi FC vs Uthai Thani","Thai Premier League (THA)",50,-50,"loss"],
+["2026-02-13","Underzão 1.5","CS Constantine vs ES Sétif","Ligue 1 (DZA)",50,-50,"loss"],
+["2026-02-13","Underzão 1.5","Durban City vs TS Galaxy","Premier League (ZAF)",50,-50,"loss"],
+["2026-02-13","Underzão 1.5","Rennes vs Paris Saint Germain","Ligue 1 (FRA)",50,-50,"loss"],
+["2026-02-13","Underzão 1.5","FC Dordrecht vs FC Emmen","Eerste Divisie (NLD)",50,124.15,"win"],
+["2026-02-13","Underzão 1.5","FC Volendam vs PSV","Eredivisie (NLD)",50,-50,"loss"],
+["2026-02-13","Underzão 1.5","ADO Den Haag vs MVV Maastricht","Eerste Divisie (NLD)",50,-50,"loss"],
+["2026-02-13","Underzão 1.5","Carabobo vs Monagas","Primera Division (VEN)",50,124.15,"win"],
+["2026-02-14","Underzão 1.5","Independiente vs Lanús","Liga Profesional de Fútbol (ARG)",50,-50,"loss"],
+["2026-02-14","Underzão 1.5","Puntarenas vs Pérez Zeledón","Primera Division (CRI)",50,91.68,"win"],
+["2026-02-14","Underzão 1.5","Irapuato vs Dorados","Liga de Expansión MX (MEX)",50,-50,"loss"],
+["2026-02-14","Underzão 1.5","Toluca vs Tijuana","Liga MX (MEX)",50,143.25,"win"],
+["2026-02-14","Underzão 1.5","Melbourne Victory vs Brisbane Roar","A-League Men (AUS)",50,-50,"loss"],
+["2026-02-14","Underzão 1.5","Sukhothai vs Ayutthaya United","Thai Premier League (THA)",50,-50,"loss"],
+["2026-02-14","Underzão 1.5","ATK Mohun Bagan vs Kerala Blasters","Indian Super League (IND)",50,-50,"loss"],
+["2026-02-14","Underzão 1.5","Kaiserslautern vs SpVgg Greuther Fürth","2. Bundesliga (DEU)",50,181.45,"win"],
+["2026-02-14","Underzão 1.5","Córdoba vs Leganés","Spain La Liga 2 (ESP)",50,-50,"loss"],
+["2026-02-14","Underzão 1.5","Al Hilal Omdurman vs Saint Eloi Lupopo","CAF Champions League",50,105.05,"win"],
+["2026-02-14","Underzão 1.5","Al Tai vs Al Jubail","Division 1 (SAU)",50,-50,"loss"],
+["2026-02-14","Underzão 1.5","Alanyaspor vs Konyaspor","Super Lig (TUR)",50,-50,"loss"],
+["2026-02-14","Underzão 1.5","Modena vs Carrarese","Serie B (ITA)",39.5,-39.5,"void"],
+["2026-02-14","Underzão 1.5","Dinamo Zagreb vs Istra 1961","1. HNL (HRV)",50,-50,"loss"],
+["2026-02-14","Underzão 1.5","Manchester City vs Salford City","FA Cup (ENG)",50,-50,"loss"],
+["2026-02-14","Underzão 1.5","Norwich City vs West Bromwich Albion","FA Cup (ENG)",50,-50,"loss"],
+["2026-02-14","Underzão 1.5","Hibernian vs St. Mirren","Premiership (SCO)",50,-50,"loss"],
+["2026-02-14","Underzão 1.5","Lincoln City vs Bolton Wanderers","England League 1 (ENG)",50,-50,"loss"],
+["2026-02-14","Underzão 1.5","Milton Keynes Dons vs Newport County","League Two (ENG)",50,136.09,"win"],
+["2026-02-14","Underzão 1.5","Sheffield Wednesday vs Millwall","England Championship (ENG)",50,-50,"loss"],
+["2026-02-14","Underzão 1.5","Derby County vs Swansea City","England Championship (ENG)",50,-50,"loss"],
+["2026-02-14","Underzão 1.5","Crewe Alexandra vs Gillingham","League Two (ENG)",50,53.48,"win"],
+["2026-02-14","Underzão 1.5","Ried vs LASK Linz","Admiral Bundesliga (AUT)",50,-50,"loss"],
+["2026-02-14","Underzão 1.5","Excelsior vs AZ","Eredivisie (NLD)",50,-50,"loss"],
+["2026-02-14","Underzão 1.5","VfB Stuttgart vs FC Köln","Germany Bundesliga (DEU)",50,-50,"loss"],
+["2026-02-14","Underzão 1.5","Chippa United vs Richards Bay","Premier League (ZAF)",50,-50,"loss"],
+["2026-02-14","Underzão 1.5","Paksi SE vs Diósgyőr","NB I (HUN)",50,-50,"loss"],
+["2026-02-14","Underzão 1.5","Brusque vs Chapecoense","Catarinense 1 (BRA)",50,46.32,"win"],
+["2026-02-14","Underzão 1.5","Standard Liège vs Union Saint-Gilloise","Pro League (BEL)",50,-50,"loss"],
+["2026-02-14","Underzão 1.5","FC Groningen vs FC Utrecht","Eredivisie (NLD)",50,-50,"loss"],
+["2026-02-14","Underzão 1.5","Deportivo Maldonado vs Atlético Progreso","Primera Division (URY)",50,-50,"loss"],
+["2026-02-14","Underzão 1.5","Sport Boys vs Atlético Grau","Primera Division (PER)",50,58.26,"win"],
+["2026-02-15","Underzão 1.5","Municipal vs Achuapa","Liga Nacional (GTM)",50,-50,"loss"],
+["2026-02-15","Underzão 1.5","Monterrey vs León","Liga MX (MEX)",50,148.03,"win"],
+["2026-02-15","Underzão 1.5","Herediano vs Cartaginés","Primera Division (CRI)",50,36.77,"win"],
+["2026-02-15","Underzão 1.5","Guadalajara vs América","Liga MX (MEX)",50,95.5,"win"],
+["2026-02-15","Underzão 1.5","Kocaelispor vs Gaziantep F.K.","Super Lig (TUR)",50,-50,"loss"],
+["2026-02-15","Underzão 1.5","UTA Arad vs Botoşani","Superliga (ROU)",50,-50,"loss"],
+["2026-02-15","Underzão 1.5","Energie Cottbus vs Waldhof Mannheim","3. Liga (DEU)",50,-50,"loss"],
+["2026-02-15","Underzão 1.5","Amed SK vs Sakaryaspor","1. Lig (TUR)",50,-50,"loss"],
+["2026-02-15","Underzão 1.5","Thun vs Sion","Super League (CHE)",50,77.83,"win"],
+["2026-02-15","Underzão 1.5","Telstar vs FC Twente","Eredivisie (NLD)",50,-50,"loss"],
+["2026-02-15","Underzão 1.5","Blau-Weiß Linz vs Wolfsberger AC","Admiral Bundesliga (AUT)",50,-50,"loss"],
+["2026-02-15","Underzão 1.5","Pogoń Szczecin vs Arka Gdynia","Ekstraklasa (POL)",50,102.66,"win"],
+["2026-02-15","Underzão 1.5","Motherwell vs Aberdeen","Premiership (SCO)",50,-50,"loss"],
+["2026-02-15","Underzão 1.5","Slovan Liberec vs Baník Ostrava","Chance Liga (CZE)",50,105.05,"win"],
+["2026-02-15","Underzão 1.5","Young Africans vs JS Kabylie","CAF Champions League",50,-50,"loss"],
+["2026-02-15","Underzão 1.5","Viborg FF vs Brøndby IF","Superliga (DNK)",50,117.47,"win"],
+["2026-02-15","Underzão 1.5","Aurora vs Cobán Imperial","Liga Nacional (GTM)",50,86.91,"win"],
+["2026-02-15","Underzão 1.5","Sparta Praha vs Hradec Králové","Chance Liga (CZE)",50,-50,"loss"],
+["2026-02-15","Underzão 1.5","AVS vs Estoril","Liga Portugal (PRT)",50,-50,"loss"],
+["2026-02-15","Underzão 1.5","Chapelton vs Treasure Beach","Premier League (JAM)",50,-50,"loss"],
+["2026-02-15","Underzão 1.5","Grêmio vs Juventude","Gaucho 1 (BRA)",50,-50,"loss"],
+["2026-02-15","Underzão 1.5","Deportes Tolima vs Once Caldas","Liga BetPlay (COL)",50,-50,"loss"],
+["2026-02-15","Underzão 1.5","Sportivo Trinidense vs Libertad","Division 1 (PRY)",50,86.91,"win"],
+["2026-02-16","Underzão 1.5","Bragantino vs Novorizontino","Paulista A1 (BRA)",50,-50,"loss"],
+["2026-02-16","Underzão 1.5","Rosario Central vs Barracas Central","Liga Profesional de Fútbol (ARG)",50,-50,"loss"],
+["2026-02-16","Underzão 1.5","East Bengal vs NorthEast United","Indian Super League (IND)",50,-50,"loss"],
+["2026-02-16","Underzão 1.5","IMT Novi Beograd vs Javor Ivanjica","Super Liga (SRB)",50,63.98,"win"],
+["2026-02-16","Underzão 1.5","Bravo vs Aluminij","1. SNL (SVN)",50,-50,"loss"],
+["2026-02-16","Underzão 1.5","Jong FC Utrecht vs Willem II","Eerste Divisie (NLD)",50,-50,"loss"],
+["2026-02-16","Underzão 1.5","Deportivo Riestra vs Newell's Old Boys","Liga Profesional de Fútbol (ARG)",50,-50,"loss"],
+["2026-02-17","Underzão 1.5","Fleetwood Town U21 vs Crewe Alexandra U21","Professional Development League (ENG)",50,-50,"loss"],
+["2026-02-17","Underzão 1.5","Entebbe UPPC vs Mbarara City","Premier League (UGA)",50,61.12,"win"],
+["2026-02-17","Underzão 1.5","Chesterfield vs Gillingham","League Two (ENG)",49,96.45,"win"],
+["2026-02-17","Underzão 1.5","Shrewsbury Town vs Notts County","League Two (ENG)",36.5,47.27,"win"],
+["2026-02-17","Underzão 1.5","Reading vs Bolton Wanderers","England League 1 (ENG)",50,-50,"loss"],
+["2026-02-17","Underzão 1.5","Carabobo vs Huachipato","Copa Libertadores (SAmerica)",50,70.67,"win"],
+["2026-02-18","Underzão 1.5","Persib vs Ratchaburi Mitrphol FC","AFC Champions League Two (World)",50,121.76,"win"],
+["2026-02-18","Underzão 1.5","Real Madrid W Women vs Paris W Women","UEFA Women's Champions League (Europe)",50,-50,"loss"],
+["2026-02-18","Underzão 1.5","Al Nassr vs Arkadag","AFC Champions League Two (World)",50,85,"win"],
+["2026-02-18","Underzão 1.5","Maguary PE vs Laguna","Copa do Brasil (BRA)",50,107.44,"win"],
+["2026-02-19","Underzão 1.5","Nacional Potosí vs Botafogo","Copa Libertadores (SAmerica)",50,100.28,"win"],
+["2026-02-19","Underzão 1.5","Mumbai City vs Chennaiyin","Indian Super League (IND)",50,112.21,"win"],
+["2026-02-19","Underzão 1.5","SC Villa vs Maroons","Premier League (UGA)",50,-50,"loss"],
+["2026-02-19","Underzão 1.5","Noah vs AZ","Europa Conference League (Europe)",50,76.4,"win"],
+["2026-02-19","Underzão 1.5","Al Ahly vs El Gounah","Premier League (EGY)",50,74.49,"win"],
+["2026-02-19","Underzão 1.5","Pharco vs Petrojet","Premier League (EGY)",50,-50,"loss"],
+["2026-02-20","Underzão 1.5","Sporting San Miguelito vs LA Galaxy","CONCACAF Champions Cup",50,-50,"loss"],
+["2026-02-20","Underzão 1.5","Fortuna Sittard vs Excelsior","Eredivisie (NLD)",50,-50,"loss"],
+["2026-02-20","Underzão 1.5","Annecy vs Red Star","Ligue 2 (FRA)",50,-50,"loss"],
+["2026-02-20","Underzão 1.5","Stade Nyonnais vs Aarau","Challenge League (CHE)",50,-50,"loss"],
+["2026-02-20","Underzão 1.5","Dundalk vs Drogheda United","Premier Division (IRL)",50,-50,"loss"],
+["2026-02-20","Underzão 1.5","Shamrock Rovers vs St Patrick's","Premier Division (IRL)",50,-50,"loss"],
+["2026-02-20","Underzão 1.5","Estudiantes vs Sarmiento","Argentina Liga Profesional de Fútbol (ARG)",50,79.27,"win"],
+["2026-02-21","Underzão 1.5","Bangu vs Volta Redonda","Carioca Serie A (BRA)",50,47.75,"win"],
+["2026-02-21","Underzão 1.5","Defensor Sporting vs Cerro Largo","Primera Division (URY)",50,80.22,"win"],
+["2026-02-21","Underzão 1.5","Alianza Lima vs Sport Boys","Primera Division (PER)",50,112.21,"win"],
+["2026-02-21","Underzão 1.5","Tepatitlán de Morelos vs Irapuato","Liga de Expansión MX (MEX)",50,-50,"loss"],
+["2026-02-21","Underzão 1.5","Deportivo Pereira vs Deportivo Pasto","Liga BetPlay (COL)",50,-50,"loss"],
+["2026-02-21","Underzão 1.5","Sydney vs Brisbane Roar","A-League Men (AUS)",50,138.47,"win"],
+["2026-02-21","Underzão 1.5","Briton Ferry vs Bala Town","Premier League (WLS)",50,-50,"loss"],
+["2026-02-21","Underzão 1.5","Port FC vs Nakhonratchasima Mazda FC","Thai Premier League (THA)",50,-50,"loss"],
+["2026-02-21","Underzão 1.5","Swansea City vs Bristol City","England Championship (ENG)",50,61.12,"win"],
+["2026-02-21","Underzão 1.5","St. Louis City vs Charlotte","Major League Soccer (USA)",50,-50,"loss"],
+["2026-02-21","Underzão 1.5","Internacional vs Ypiranga Erechim","Gaucho 1 (BRA)",50,-50,"loss"],
+["2026-02-22","Underzão 1.5","Vancouver Whitecaps vs Real Salt Lake","Major League Soccer (USA)",50,136.09,"win"],
+["2026-02-22","Underzão 1.5","Los Angeles FC vs Inter Miami","Major League Soccer (USA)",50,-50,"loss"],
+["2026-02-22","Underzão 1.5","Newcastle Jets vs Macarthur","A-League Men (AUS)",50,224.43,"win"],
+["2026-02-22","Underzão 1.5","Bihor Oradea vs ASA Târgu Mureş","Liga 2 (ROU)",50,-50,"loss"],
+["2026-02-22","Underzão 1.5","Roda JC Kerkrade vs MVV Maastricht","Eerste Divisie (NLD)",50,-50,"loss"],
+["2026-02-22","Underzão 1.5","Bohemians 1905 vs Dukla Praha","Chance Liga (CZE)",50,94.55,"win"],
+["2026-02-22","Underzão 1.5","Argeş vs Farul Constanța","Superliga (ROU)",50,90.72,"win"],
+["2026-02-22","Underzão 1.5","Wil vs Stade Lausanne-Ouchy","Challenge League (CHE)",50,97.89,"win"],
+["2026-02-22","Underzão 1.5","FC Utrecht vs PEC Zwolle","Eredivisie (NLD)",50,-50,"loss"],
+["2026-02-22","Underzão 1.5","Sturm Graz vs Blau-Weiß Linz","Admiral Bundesliga (AUT)",50,79.27,"win"],
+["2026-02-22","Underzão 1.5","Maribor vs Bravo","1. SNL (SVN)",50,-50,"loss"],
+["2026-02-22","Underzão 1.5","Bačka Topola vs Čukarički","Super Liga (SRB)",50,-50,"loss"],
+["2026-02-22","Underzão 1.5","Novorizontino vs Santos","Paulista A1 (BRA)",50,-50,"loss"],
+["2026-02-22","Underzão 1.5","Roma vs Cremonese","Italy Serie A (ITA)",50,-50,"loss"],
+["2026-02-22","Underzão 1.5","Málaga vs Albacete","Spain La Liga 2 (ESP)",50,112.21,"win"],
+["2026-02-22","Underzão 1.5","Porto vs Rio Ave","Liga Portugal (PRT)",50,131.31,"win"],
+["2026-02-22","Underzão 1.5","Juventude vs Grêmio","Gaucho 1 (BRA)",50,-50,"loss"],
+["2026-02-23","Underzão 1.5","Flamengo vs Madureira","Carioca Serie A (BRA)",50,-50,"loss"],
+["2026-02-23","Underzão 1.5","Unión Santa Fe vs Aldosivi","Liga Profesional de Fútbol (ARG)",50,48.7,"win"],
+["2026-02-23","Underzão 1.5","América de Cali vs Jaguares de Córdoba","Liga BetPlay (COL)",50,-50,"loss"],
+["2026-02-23","Underzão 1.5","Seattle Sounders vs Colorado Rapids","Major League Soccer (USA)",50,-50,"loss"],
+["2026-02-23","Underzão 1.5","ATK Mohun Bagan vs Chennaiyin","Indian Super League (IND)",50,-50,"loss"],
+["2026-02-23","Underzão 1.5","Fiorentina vs Pisa","Italy Serie A (ITA)",50,114.6,"win"],
+["2026-02-23","Underzão 1.5","Al Salmiyah vs Al Arabi SC","Zain Premier League (KWT)",50,50.62,"win"],
+["2026-02-23","Underzão 1.5","Al Fateh vs Al Akhdoud","Pro League (SAU)",50,-50,"loss"],
+["2026-02-23","Underzão 1.5","West Ham United U21 vs Crystal Palace U21","Premier League 2 Division One (ENG)",50,-50,"loss"],
+["2026-02-23","Underzão 1.5","Shamrock Rovers vs Dundalk","Premier Division (IRL)",50,-50,"loss"],
+["2026-02-23","Underzão 1.5","UCV Moquegua vs Deportivo Garcilaso","Primera Division (PER)",50,63.03,"win"],
+["2026-02-23","Underzão 1.5","Famalicão vs Casa Pia","Liga Portugal (PRT)",50,-50,"loss"],
+["2026-02-23","Underzão 1.5","Porto II vs Paços de Ferreira","Liga Portugal 2 (PRT)",50,97.89,"win"],
+["2026-02-23","Underzão 1.5","Monsoon vs Avenida","Gaucho 1 (BRA)",50,-50,"loss"],
+["2026-02-24","Underzão 1.5","Bristol City U21 vs Queens Park Rangers U21","Professional Development League (ENG)",50,-50,"loss"],
+["2026-02-24","Underzão 1.5","Luton Town vs Plymouth Argyle","EFL Trophy (ENG)",50,-50,"loss"],
+["2026-02-24","Underzão 1.5","Ceramica Cleopatra vs Ismaily","Premier League (EGY)",45.5,-45.5,"void"],
+["2026-02-25","Underzão 1.5","Ethiopian Medhin vs Kedus Giorgis","Premier League (ETH)",50,-50,"loss"],
+["2026-02-25","Underzão 1.5","Persebaya Surabaya vs PSM","Liga 1 (IDN)",50,100.28,"win"],
+["2026-02-25","Underzão 1.5","Al Wasl vs Shabab Al Ahli Dubai","UAE Pro League (ARE)",50,-50,"loss"],
+["2026-02-25","Underzão 1.5","Atlético GO vs Primavera MG","Copa do Brasil (BRA)",50,70.67,"win"],
+["2026-02-25","Underzão 1.5","Juventus vs Galatasaray","Champions League (Europe)",50,-50,"loss"],
+["2026-02-25","Underzão 1.5","Novorizontino vs Nacional AM","Copa do Brasil (BRA)",50,-50,"loss"],
+["2026-02-25","Underzão 1.5","Madureira vs ABC","Copa do Brasil (BRA)",45.5,48.23,"win"],
+["2026-02-25","Underzão 1.5","Bragantino vs Athletico PR","Brazil Serie A (BRA)",50,-50,"loss"],
+["2026-02-25","Underzão 1.5","Tombense vs Oratório","Copa do Brasil (BRA)",50,-50,"loss"],
+["2026-02-26","Underzão 1.5","Olimpia vs Libertad","Division 1 (PRY)",50,58.26,"win"],
+["2026-02-26","Underzão 1.5","Vancouver Whitecaps vs Cartaginés","CONCACAF Champions Cup",50,-50,"loss"],
+["2026-02-26","Underzão 1.5","Goa vs Sporting Delhi","Indian Super League (IND)",50,68.76,"win"],
+["2026-02-26","Underzão 1.5","Samsunspor vs Skendija 79","Europa Conference League (Europe)",50,-50,"loss"],
+["2026-02-26","Underzão 1.5","Celta de Vigo vs PAOK","Europa League (Europe)",50,56.34,"win"],
+["2026-02-26","Underzão 1.5","Lech Poznań vs KuPS","Europa Conference League (Europe)",50,112.21,"win"],
+["2026-02-26","Underzão 1.5","Estudiantes de Río Cuarto vs Huracán","Liga Profesional de Fútbol (ARG)",50,-50,"loss"],
+];
+
+const RAW2 = [
+["2026-01-21","BACK Casa","Botafogo vs Volta Redonda","Carioca Serie A (BRA)",50,38.5,"win"],
+["2026-01-22","BACK Casa","Flamengo vs Vasco da Gama","Carioca Serie A (BRA)",50,42.0,"win"],
+["2026-01-24","BACK Casa","True Bangkok United vs Chonburi FC","Thai Premier League (THA)",50,34.0,"win"],
+["2026-01-25","BACK Casa","Botafogo vs Bangu","Brazil Carioca (BRA)",50,22.0,"win"],
+["2026-01-30","BACK Casa","Hồng Lĩnh Hà Tĩnh vs Becamex Hồ Chí Minh U19","V-League (VNM)",50,-50.0,"loss"],
+["2026-02-01","BACK Casa","Boluspor vs Sakaryaspor","1. Lig (TUR)",50,47.0,"win"],
+["2026-02-01","BACK Casa","Como vs Atalanta","Italy Serie A (ITA)",50,-50.0,"loss"],
+["2026-02-01","BACK Casa","VfB Stuttgart vs SC Freiburg","Germany Bundesliga (DEU)",50,47.5,"win"],
+["2026-02-11","BACK Casa","Nottingham Forest vs Wolverhampton Wanderers","Premier League (ENG)",50,-50.0,"loss"],
+["2026-02-15","BACK Casa","Sporting CP vs Famalicão","Liga Portugal (PRT)",50,25.5,"win"],
+["2026-02-16","BACK Casa","Dinamo Bucureşti vs Unirea Slobozia","Superliga (ROU)",50,32.0,"win"],
+["2026-02-18","BACK Casa","Real Madrid W Women vs Paris W Women","UEFA Women's Champions League (Europe)",50,19.5,"win"],
+["2026-02-20","BACK Casa","De Graafschap vs Jong FC Utrecht","Eerste Divisie (NLD)",50,44.5,"win"],
+["2026-02-24","BACK Casa","Inter vs Bodø / Glimt","Champions League (Europe)",50,-50.0,"loss"],
+["2026-02-26","BACK Casa","Vancouver Whitecaps vs Cartaginés","CONCACAF Champions Cup",50,21.5,"win"],
+];
+
+const RAW3 = [
+["2026-01-16","Ambas FAV","Monaco vs Lorient","Ligue 1 (FRA)",50,51.0,"win"],
+["2026-01-16","Ambas FAV","ADO Den Haag vs SC Cambuur","Eerste Divisie (NLD)",50,52.5,"win"],
+["2026-01-17","Ambas FAV","Southampton vs Hull City","Championship (ENG)",50,25.5,"win"],
+["2026-01-17","Ambas FAV","Galatasaray vs Gaziantep F.K.","Super Lig (TUR)",50,41.5,"win"],
+["2026-01-18","Ambas FAV","Feyenoord vs Sparta Rotterdam","Eredivisie (NLD)",50,22.0,"win"],
+["2026-01-18","Ambas FAV","Rennes vs Le Havre","France Ligue 1 (FRA)",50,53.0,"win"],
+["2026-01-18","Ambas FAV","Aston Villa vs Everton","England Premier League (ENG)",50,-50.0,"loss"],
+["2026-01-19","Ambas FAV","Konyaspor vs Eyüpspor","Super Lig (TUR)",50,40.0,"win"],
+["2026-01-22","Ambas FAV","Cruzeiro vs Democrata GV","Mineiro 1 (BRA)",50,-50.0,"loss"],
+["2026-01-24","Ambas FAV","Qarabağ vs Kapaz","Premier League (AZE)",50,-50.0,"loss"],
+["2026-01-28","Ambas FAV","Al Wasl vs Khorfakkan Club","UAE Pro League (ARE)",50,-50.0,"loss"],
+["2026-01-30","Ambas FAV","ADO Den Haag vs Jong AZ","Eerste Divisie (NLD)",50,34.0,"win"],
+["2026-02-01","Ambas FAV","Flamengo vs Corinthians","Supercopa do Brasil (BRA)",50,-50.0,"loss"],
+["2026-02-01","Ambas FAV","Bragantino vs São Bernardo","Paulista A1 (BRA)",50,21.5,"win"],
+["2026-02-02","Ambas FAV","AFC Bournemouth U21 vs Cardiff City U21","Professional Development League (ENG)",50,35.0,"win"],
+["2026-02-22","Ambas FAV","Genk vs Standard Liège","Pro League (BEL)",50,-50.0,"loss"],
+["2026-02-23","Ambas FAV","Lechia Gdańsk vs Zagłębie Lubin","Ekstraklasa (POL)",50,-50.0,"loss"],
+["2026-02-24","Ambas FAV","SC Cambuur vs FC Eindhoven","Eerste Divisie (NLD)",50,21.0,"win"],
+["2026-02-24","Ambas FAV","Swansea City vs Preston North End","England Championship (ENG)",50,58.0,"win"],
+["2026-02-24","Ambas FAV","Huachipato vs Carabobo","Copa Libertadores (SAmerica)",50,25.0,"win"],
+["2026-02-26","Ambas FAV","VfB Stuttgart vs Celtic","Europa League (Europe)",50,-50.0,"loss"],
+["2026-02-26","Ambas FAV","Nottingham Forest vs Fenerbahçe","Europa League (Europe)",50,26.0,"win"],
+];
+
+const RAW4 = [
+["2026-01-24","LAY FORA","FSV Mainz 05 vs VfL Wolfsburg","Germany Bundesliga (DEU)",61.5,61.5,"win"],
+["2026-01-25","LAY FORA","FC Utrecht vs Sparta Rotterdam","Eredivisie (NLD)",49.0,-48.0,"loss"],
+["2026-01-28","LAY FORA","Al Tai vs Al-Orobah FC","Division 1 (SAU)",357.0,-60.5,"loss"],
+["2026-01-28","LAY FORA","Al Najma vs Al Riyadh","Pro League (SAU)",77.0,77.0,"win"],
+["2026-01-28","LAY FORA","Internacional vs Athletico PR","Serie A (BRA)",47.0,-48.0,"loss"],
+["2026-01-31","LAY FORA","Watford vs Swansea City","England Championship (ENG)",72.5,-46.5,"loss"],
+["2026-02-01","LAY FORA","Karviná vs Viktoria Plzeň","Chance Liga (CZE)",100.0,-50.0,"loss"],
+["2026-02-01","LAY FORA","Pardubice vs Slavia Praha","Chance Liga (CZE)",92.5,92.5,"win"],
+["2026-02-02","LAY FORA","Jong FC Utrecht vs VVV-Venlo","Eerste Divisie (NLD)",49.0,49.0,"win"],
+["2026-02-07","LAY FORA","Fiorentina vs Torino","Italy Serie A (ITA)",37.5,37.5,"win"],
+["2026-02-07","LAY FORA","North Esporte vs Uberlândia","Mineiro 1 (BRA)",263.0,-50.0,"loss"],
+["2026-02-08","LAY FORA","Monza vs Avellino","Serie B (ITA)",37.5,37.5,"win"],
+["2026-02-08","LAY FORA","Juventus vs Lazio","Italy Serie A (ITA)",119.0,119.0,"win"],
+["2026-02-08","LAY FORA","Málaga vs Cultural Leonesa","Spain La Liga 2 (ESP)",59.0,59.0,"win"],
+["2026-02-13","LAY FORA","Radomiak Radom vs Korona Kielce","Ekstraklasa (POL)",208.5,-50.0,"loss"],
+["2026-02-14","LAY FORA","Al Ain vs Al Nasr","UAE Pro League (ARE)",28.0,28.0,"win"],
+["2026-02-14","LAY FORA","Vitória Guimarães vs Estrela Amadora","Liga Portugal (PRT)",37.5,37.5,"win"],
+["2026-02-18","LAY FORA","Manisa FK vs Bandırmaspor","1. Lig (TUR)",63.5,63.5,"win"],
+["2026-02-20","LAY FORA","Estrela Amadora vs Tondela","Liga Portugal (PRT)",80.5,-52.5,"loss"],
+["2026-02-26","LAY FORA","VfB Stuttgart vs Celtic","Europa League (Europe)",35.0,-52.0,"loss"],
+];
+
+const RAW5 = [
+["2026-01-31","1.5 ODD2","Independiente vs Vélez Sarsfield","Liga Profesional de Fútbol (ARG)",100,102,"win"],
+["2026-02-04","1.5 ODD2","Santos vs São Paulo","Brazil Serie A (BRA)",100,102,"win"],
+["2026-02-06","1.5 ODD2","Rapid Bucuresti vs Petrolul 52","Superliga (ROU)",100,142,"win"],
+["2026-02-06","1.5 ODD2","FC Union Berlin vs Eintracht Frankfurt","Germany Bundesliga (DEU)",100,100,"win"],
+["2026-02-07","1.5 ODD2","Wrexham vs Millwall","Championship (ENG)",100,104,"win"],
+["2026-02-09","1.5 ODD2","Porto vs Sporting CP","Liga Portugal (PRT)",100,100,"win"],
+["2026-02-13","1.5 ODD2","Pisa vs AC Milan","Italy Serie A (ITA)",100,100,"win"],
+["2026-02-13","1.5 ODD2","Elche vs Osasuna","La Liga (ESP)",100,-100,"loss"],
+["2026-02-13","1.5 ODD2","Independiente vs Lanús","Liga Profesional de Fútbol (ARG)",100,148,"win"],
+["2026-02-14","1.5 ODD2","Cracovia Kraków vs Jagiellonia Białystok","Ekstraklasa (POL)",100,-100,"loss"],
+["2026-02-14","1.5 ODD2","Sevilla vs Deportivo Alavés","Spain La Liga (ESP)",100,99,"win"],
+["2026-02-15","1.5 ODD2","PAOK vs AEK Athens","Super League (GRC)",100,-100,"loss"],
+["2026-02-18","1.5 ODD2","Levante vs Villarreal","La Liga (ESP)",100,-100,"loss"],
+["2026-02-22","1.5 ODD2","Novorizontino vs Santos","Paulista A1 (BRA)",100,100,"win"],
+];
+
+const RAW6 = [
+["2026-01-31","Over 1.5","Leeds United vs Arsenal","England Premier League (ENG)",50,11.0,"win"],
+["2026-02-01","Over 1.5","Real Madrid vs Rayo Vallecano","Spain La Liga (ESP)",50,5.0,"win"],
+["2026-02-01","Over 1.5","Tottenham Hotspur vs Manchester City","England Premier League (ENG)",50,6.0,"win"],
+["2026-02-03","Over 1.5","Albacete vs FC Barcelona","Copa Del Rey (ESP)",50,7.5,"win"],
+["2026-02-04","Over 1.5","Holstein Kiel vs VfB Stuttgart","DFB Pokal (DEU)",50,17.5,"win"],
+["2026-02-05","Over 1.5","Atalanta vs Juventus","Coppa Italia (ITA)",50,7.0,"win"],
+["2026-02-07","Over 1.5","Manchester United vs Tottenham Hotspur","Premier League (ENG)",50,5.0,"win"],
+["2026-02-07","Over 1.5","Arsenal vs Sunderland","Premier League (ENG)",50,12.5,"win"],
+["2026-02-07","Over 1.5","FC Barcelona vs Mallorca","Spain La Liga (ESP)",50,5.0,"win"],
+["2026-02-08","Over 1.5","FC Groningen vs PSV","Eredivisie (NLD)",50,5.5,"win"],
+["2026-02-08","Over 1.5","Atlético Madrid vs Real Betis","Spain La Liga (ESP)",50,-50.0,"loss"],
+["2026-02-08","Over 1.5","Paris Saint Germain vs Olympique Marseille","France Ligue 1 (FRA)",50,4.5,"win"],
+["2026-02-08","Over 1.5","Juventus vs Lazio","Italy Serie A (ITA)",50,11.0,"win"],
+["2026-02-10","Over 1.5","Chelsea vs Leeds United","Premier League (ENG)",50,6.5,"win"],
+["2026-02-10","Over 1.5","Tottenham Hotspur vs Newcastle United","Premier League (ENG)",50,15.0,"win"],
+["2026-02-10","Over 1.5","Napoli vs Como","Coppa Italia (ITA)",50,18.5,"win"],
+["2026-02-13","Over 1.5","Rennes vs Paris Saint Germain","Ligue 1 (FRA)",50,5.0,"win"],
+["2026-02-13","Over 1.5","Hull City vs Chelsea","FA Cup (ENG)",50,8.5,"win"],
+["2026-02-14","Over 1.5","Getafe vs Villarreal","Spain La Liga (ESP)",50,18.5,"win"],
+["2026-02-14","Over 1.5","Manchester City vs Salford City","FA Cup (ENG)",50,6.0,"win"],
+["2026-02-14","Over 1.5","Lazio vs Atalanta","Italy Serie A (ITA)",50,18.5,"win"],
+["2026-02-14","Over 1.5","VfB Stuttgart vs FC Köln","Germany Bundesliga (DEU)",50,8.5,"win"],
+["2026-02-14","Over 1.5","Liverpool vs Brighton & Hove Albion","FA Cup (ENG)",50,7.5,"win"],
+["2026-02-15","Over 1.5","Napoli vs Roma","Italy Serie A (ITA)",50,12.0,"win"],
+["2026-02-17","Over 1.5","Benfica vs Real Madrid","Champions League (Europe)",50,-50.0,"loss"],
+["2026-02-18","Over 1.5","Levante vs Villarreal","La Liga (ESP)",50,-50.0,"loss"],
+["2026-02-18","Over 1.5","Wolverhampton Wanderers vs Arsenal","Premier League (ENG)",50,6.0,"win"],
+["2026-02-18","Over 1.5","Club Brugge vs Atlético Madrid","UEFA Champions League (Europe)",50,8.5,"win"],
+["2026-02-21","Over 1.5","Chelsea vs Burnley","England Premier League (ENG)",50,6.5,"win"],
+["2026-02-22","Over 1.5","Atalanta vs Napoli","Italy Serie A (ITA)",50,13.5,"win"],
+["2026-02-24","Over 1.5","Inter vs Bodø / Glimt","Champions League (Europe)",50,11.0,"win"],
+["2026-02-25","Over 1.5","Atalanta vs Borussia Dortmund","Champions League (Europe)",50,6.5,"win"],
+["2026-02-25","Over 1.5","Paris Saint Germain vs Monaco","Champions League (Europe)",50,6.0,"win"],
+["2026-02-26","Over 1.5","VfB Stuttgart vs Celtic","Europa League (Europe)",50,-50.0,"loss"],
+];
+
+const RAW7 = [
+["2026-01-19","LAY ZEBRA HT","Ajman vs Al Dhafra","UAE Pro League (ARE)",125.0,-19.5,"loss"],
+["2026-01-19","LAY ZEBRA HT","Beşiktaş vs Kayserispor","Super Lig (TUR)",64.0,-5.0,"loss"],
+["2026-01-21","LAY ZEBRA HT","AZ vs Excelsior","Eredivisie (NLD)",59.5,-2.5,"loss"],
+["2026-01-22","LAY ZEBRA HT","Flamengo vs Vasco da Gama","Carioca Serie A (BRA)",66.0,6.0,"win"],
+["2026-01-22","LAY ZEBRA HT","Botafogo SP vs Primavera SP","Brazil Paulista A1 (BRA)",147.0,0.0,"void"],
+["2026-01-23","LAY ZEBRA HT","Al-Orobah FC vs Al Bukayriyah","Division 1 (SAU)",139.0,84.5,"win"],
+["2026-01-23","LAY ZEBRA HT","Trabzonspor vs Kasımpaşa","Super Lig (TUR)",80.5,-20.5,"loss"],
+["2026-01-23","LAY ZEBRA HT","Briton Ferry vs Llanelli Town","Premier League (WLS)",64.0,45.0,"win"],
+["2026-01-23","LAY ZEBRA HT","Independiente vs Estudiantes","Liga Profesional de Fútbol (ARG)",156.5,121.0,"win"],
+["2026-01-24","LAY ZEBRA HT","Mineros de Zacatecas vs CA La Paz","Liga de Expansión MX (MEX)",96.0,-5.0,"loss"],
+["2026-01-24","LAY ZEBRA HT","Talleres Córdoba vs Newell's Old Boys","Liga Profesional de Fútbol (ARG)",111.0,7.5,"win"],
+["2026-01-24","LAY ZEBRA HT","True Bangkok United vs Chonburi FC","Thai Premier League (THA)",69.5,-7.5,"loss"],
+["2026-01-24","LAY ZEBRA HT","Huddersfield Town vs Bradford City","England League 1 (ENG)",131.5,87.0,"win"],
+["2026-01-24","LAY ZEBRA HT","Cesena vs Bari 1908","Serie B (ITA)",73.5,-8.0,"loss"],
+["2026-01-25","LAY ZEBRA HT","Südtirol vs Calcio Padova","Serie B (ITA)",89.5,63.0,"win"],
+["2026-01-25","LAY ZEBRA HT","OFI vs Panaitolikos","Greece Super League (GRC)",108.5,79.5,"win"],
+["2026-01-25","LAY ZEBRA HT","Boca Juniors vs Deportivo Riestra","Liga Profesional de Fútbol (ARG)",55.5,0.0,"void"],
+["2026-01-25","LAY ZEBRA HT","Tombense vs Democrata GV","Mineiro 1 (BRA)",125.0,20.0,"win"],
+["2026-01-26","LAY ZEBRA HT","Ceuta vs Cultural Leonesa","Spain La Liga 2 (ESP)",128.0,-192.5,"loss"],
+["2026-01-27","LAY ZEBRA HT","Gimnasia y Esgrima Mendoza vs San Lorenzo","Liga Profesional de Fútbol (ARG)",161.5,86.0,"win"],
+["2026-01-28","LAY ZEBRA HT","Atlético Tucumán vs Central Cordoba SdE","Liga Profesional de Fútbol (ARG)",122.0,18.5,"win"],
+["2026-01-28","LAY ZEBRA HT","Al Hussein vs Al Salt","Premier League (JOR)",57.0,-3.5,"loss"],
+["2026-01-29","LAY ZEBRA HT","Al Faysali vs Al Ramtha","Premier League (JOR)",113.5,9.5,"win"],
+["2026-01-29","LAY ZEBRA HT","Belgrano vs Tigre","Liga Profesional de Fútbol (ARG)",104.0,-6.0,"loss"],
+["2026-01-30","LAY ZEBRA HT","Nürnberg vs Preußen Münster","2. Bundesliga (DEU)",166.5,28.5,"win"],
+["2026-01-30","LAY ZEBRA HT","ADO Den Haag vs Jong AZ","Eerste Divisie (NLD)",55.5,-21.5,"loss"],
+["2026-01-30","LAY ZEBRA HT","Bastia vs Nancy","Ligue 2 (FRA)",135.0,5.5,"win"],
+["2026-01-31","LAY ZEBRA HT","Iğdır FK vs Manisa FK","1. Lig (TUR)",92.5,-6.0,"loss"],
+["2026-01-31","LAY ZEBRA HT","Brighton & Hove Albion vs Everton","England Premier League (ENG)",111.0,-2.0,"loss"],
+["2026-01-31","LAY ZEBRA HT","Watford vs Swansea City","England Championship (ENG)",166.5,43.5,"win"],
+["2026-01-31","LAY ZEBRA HT","Córdoba vs Real Valladolid","Spain La Liga 2 (ESP)",131.5,90.0,"win"],
+["2026-02-01","LAY ZEBRA HT","Almería vs Ceuta","Spain La Liga 2 (ESP)",92.5,55.5,"win"],
+["2026-02-01","LAY ZEBRA HT","Flamengo vs Corinthians","Supercopa do Brasil (BRA)",69.5,-149.5,"loss"],
+["2026-02-02","LAY ZEBRA HT","Internacional de Bogotá vs Deportes Tolima","Liga BetPlay (COL)",64.0,3.0,"win"],
+["2026-02-03","LAY ZEBRA HT","Argentinos Juniors vs Belgrano","Liga Profesional de Fútbol (ARG)",61.0,-7.5,"loss"],
+["2026-02-03","LAY ZEBRA HT","Petrolul 52 vs Unirea Slobozia","Superliga (ROU)",89.5,3.0,"win"],
+["2026-02-05","LAY ZEBRA HT","FCSB vs Botoşani","Superliga (ROU)",92.5,72.0,"win"],
+["2026-02-05","LAY ZEBRA HT","Vasco da Gama vs Chapecoense","Brazil Serie A (BRA)",80.5,13.0,"win"],
+["2026-02-05","LAY ZEBRA HT","Corinthians vs Capivariano","Paulista A1 (BRA)",58.0,-1.5,"loss"],
+["2026-02-06","LAY ZEBRA HT","Korona Kielce vs Zagłębie Lubin","Ekstraklasa (POL)",92.5,42.5,"win"],
+["2026-02-06","LAY ZEBRA HT","Red Star vs Pau","Ligue 2 (FRA)",156.5,13.5,"win"],
+["2026-02-06","LAY ZEBRA HT","Figueirense vs Joinville","Catarinense 1 (BRA)",71.5,53.5,"win"],
+["2026-02-07","LAY ZEBRA HT","Tigres UANL vs Santos Laguna","Liga MX (MEX)",55.5,-113.5,"loss"],
+["2026-02-07","LAY ZEBRA HT","Gillingham vs Tranmere Rovers","League Two (ENG)",106.5,73.0,"win"],
+["2026-02-07","LAY ZEBRA HT","Coventry City vs Oxford United","Championship (ENG)",58.0,58.0,"win"],
+["2026-02-07","LAY ZEBRA HT","Maccabi Netanya vs Ironi Kiryat Shmona","Ligat ha'Al (ISR)",131.5,86.5,"win"],
+["2026-02-07","LAY ZEBRA HT","ADT vs Sport Boys","Primera Division (PER)",80.5,57.0,"win"],
+["2026-02-07","LAY ZEBRA HT","Portuguesa vs Ponte Preta","Paulista A1 (BRA)",61.0,48.0,"win"],
+["2026-02-08","LAY ZEBRA HT","Go Ahead Eagles vs Telstar","Eredivisie (NLD)",131.5,0.0,"void"],
+["2026-02-08","LAY ZEBRA HT","Monza vs Avellino","Serie B (ITA)",61.0,-7.0,"loss"],
+["2026-02-08","LAY ZEBRA HT","Puskás vs Zalaegerszegi TE","NB I (HUN)",122.0,-235.0,"loss"],
+["2026-02-08","LAY ZEBRA HT","Botev Plovdiv vs Beroe","First League (BGR)",89.5,0.0,"void"],
+["2026-02-08","LAY ZEBRA HT","Atlético Madrid vs Real Betis","Spain La Liga (ESP)",73.5,-97.0,"loss"],
+["2026-02-09","LAY ZEBRA HT","Al Duhail vs Al Sharjah","AFC Champions League Elite (Asia)",116.5,-177.0,"loss"],
+["2026-02-09","LAY ZEBRA HT","Racing Santander vs Mirandés","Spain La Liga 2 (ESP)",80.5,-9.5,"loss"],
+["2026-02-10","LAY ZEBRA HT","Mansfield Town vs Peterborough United","League One (ENG)",161.5,0.5,"win"],
+["2026-02-11","LAY ZEBRA HT","Pumas UNAM vs San Diego","CONCACAF Champions Cup",135.0,102.5,"win"],
+["2026-02-11","LAY ZEBRA HT","Nottingham Forest vs Wolverhampton Wanderers","Premier League (ENG)",80.5,-5.0,"loss"],
+["2026-02-11","LAY ZEBRA HT","Manchester City vs Fulham","Premier League (ENG)",67.5,45.0,"win"],
+["2026-02-11","LAY ZEBRA HT","Aston Villa vs Brighton & Hove Albion","Premier League (ENG)",166.5,15.0,"win"],
+["2026-02-11","LAY ZEBRA HT","Grimsby Town vs Accrington Stanley","League Two (ENG)",92.5,3.0,"win"],
+["2026-02-12","LAY ZEBRA HT","Forlì vs Pontedera","Serie C: Girone B (ITA)",106.5,87.5,"win"],
+["2026-02-12","LAY ZEBRA HT","FC Den Bosch vs FC Eindhoven","Eerste Divisie (NLD)",161.5,116.5,"win"],
+["2026-02-22","LAY ZEBRA HT","Jagiellonia Białystok vs Radomiak Radom","Ekstraklasa (POL)",96.0,-2.0,"loss"],
+["2026-02-22","LAY ZEBRA HT","Macará vs Leones del Norte","Liga Pro (ECU)",113.5,-2.0,"loss"],
+["2026-02-22","LAY ZEBRA HT","EC São José vs Novo Hamburgo","Gaucho 1 (BRA)",139.0,18.0,"win"],
+["2026-02-23","LAY ZEBRA HT","Unión Santa Fe vs Aldosivi","Liga Profesional de Fútbol (ARG)",71.5,3.5,"win"],
+["2026-02-23","LAY ZEBRA HT","Famalicão vs Casa Pia","Liga Portugal (PRT)",83.5,61.0,"win"],
+["2026-02-23","LAY ZEBRA HT","Monsoon vs Avenida","Gaucho 1 (BRA)",161.5,44.5,"win"],
+["2026-02-24","LAY ZEBRA HT","Huachipato vs Carabobo","Copa Libertadores (SAmerica)",61.0,-149.0,"loss"],
+["2026-02-25","LAY ZEBRA HT","Stoke City vs Oxford United","England Championship (ENG)",131.5,92.5,"win"],
+["2026-02-26","LAY ZEBRA HT","Kalba vs Al Dhafra","UAE Pro League (ARE)",156.5,-5.5,"loss"],
+];
+
+const RAW8 = [
+["2026-01-25","BACK Casa 2.0","Kazma vs Al Jahra","Zain Premier League (KWT)",50,37.0,"win"],
+["2026-01-29","BACK Casa 2.0","Genk vs Malmö FF","Europa League (Europe)",50,27.0,"win"],
+["2026-01-31","BACK Casa 2.0","Beşiktaş vs Konyaspor","Super Lig (TUR)",50,40.5,"win"],
+["2026-02-01","BACK Casa 2.0","Borussia Dortmund vs Heidenheim","Germany Bundesliga (DEU)",50,24.5,"win"],
+["2026-02-05","BACK Casa 2.0","Al Wahda vs Al Bataeh","UAE Pro League (ARE)",50,-50.0,"loss"],
+["2026-02-07","BACK Casa 2.0","Birmingham City vs Leicester City","England Championship (ENG)",50,21.5,"win"],
+["2026-02-08","BACK Casa 2.0","Benfica vs Alverca","Liga Portugal (PRT)",50,20.5,"win"],
+["2026-02-09","BACK Casa 2.0","Alianza Lima vs Comerciantes Unidos","Primera Division (PER)",50,29.0,"win"],
+["2026-02-13","BACK Casa 2.0","Estudiantes Mérida vs Rayo Zuliano","Primera Division (VEN)",50,-50.0,"loss"],
+["2026-02-13","BACK Casa 2.0","Al Jazira vs Kalba","UAE Pro League (ARE)",50,38.0,"win"],
+["2026-02-15","BACK Casa 2.0","Parma vs Hellas Verona","Italy Serie A (ITA)",50,37.0,"win"],
+["2026-02-17","BACK Casa 2.0","Al Wasl vs Al Zawra'a","AFC Champions League Two (World)",50,22.5,"win"],
+];
+
+const botColorMap = {};
+let currentPage = 1, filtered = [], ops = [];
+let editingIdx = -1; // global index of currently editing row
+
+function getBotColor(b) {
+  const idx = STRATEGY_ORDER.indexOf(b);
+  if (idx !== -1) return BOT_COLORS[idx % BOT_COLORS.length];
+  if (!botColorMap[b]) botColorMap[b] = BOT_COLORS[Object.keys(botColorMap).length % BOT_COLORS.length];
+  return botColorMap[b];
+}
+
+function sortBots(botsArr) {
+  return [...botsArr].sort((a, b) => {
+    const ia = STRATEGY_ORDER.indexOf(a);
+    const ib = STRATEGY_ORDER.indexOf(b);
+    if (ia === -1 && ib === -1) return a.localeCompare(b);
+    if (ia === -1) return 1;
+    if (ib === -1) return -1;
+    return ia - ib;
+  });
+}
+
+// Build a unique key for a RAW record (to detect if it's "original")
+const HISTORIC_KEYS = new Set(
+  RAW.concat(RAW2).concat(RAW3).concat(RAW4).concat(RAW5).concat(RAW6).concat(RAW7).concat(RAW8).map(r => r[0] + '||' + r[2] + '||' + r[1])
+);
+
+function initOps() {
+  const all = RAW.concat(RAW2).concat(RAW3).concat(RAW4).concat(RAW5).concat(RAW6).concat(RAW7).concat(RAW8);
+  ops = all.map((r, i) => ({
+    data: r[0],
+    bot: ALIAS[r[1]] || r[1],
+    rawBot: r[1],
+    evento: r[2],
+    mercado: r[3],
+    stake: r[4],
+    lucro: r[5],
+    resultado: r[6],
+    _id: r[0] + '||' + r[2] + '||' + r[1],  // unique fingerprint
+    _seq: i  // preserves original insertion order (fiel ao arquivo original)
+  }));
+  // Ordena por data primeiro, depois por _seq para manter ordem interna de cada estratégia
+  ops.sort((a, b) => a.data.localeCompare(b.data) || a._seq - b._seq);
+}
+
+async function loadExtra() {
+  try {
+    const res = await window.storage.get(STORAGE_KEY);
+    if (res && res.value) {
+      const extra = JSON.parse(res.value);
+      ops = ops.concat(extra);
+      ops.sort((a, b) => a.data.localeCompare(b.data) || (a._seq??Infinity) - (b._seq??Infinity));
+    }
+  } catch(e) {}
+
+  // Load edits and apply them
+  try {
+    const eRes = await window.storage.get(EDITS_KEY);
+    if (eRes && eRes.value) {
+      const edits = JSON.parse(eRes.value); // { _id: {data,bot,evento,mercado,stake,lucro,resultado} }
+      ops = ops.map(o => {
+        if (o._id && edits[o._id]) {
+          return { ...o, ...edits[o._id] };
+        }
+        return o;
+      });
+    }
+  } catch(e) {}
+}
+
+async function saveExtra() {
+  const extra = ops.filter(o => !o._id || !HISTORIC_KEYS.has(o._id));
+  try {
+    await window.storage.set(STORAGE_KEY, JSON.stringify(extra));
+  } catch(e) {}
+}
+
+async function saveEdits(editsMap) {
+  try {
+    await window.storage.set(EDITS_KEY, JSON.stringify(editsMap));
+  } catch(e) {}
+}
+
+async function loadEditsMap() {
+  try {
+    const eRes = await window.storage.get(EDITS_KEY);
+    if (eRes && eRes.value) return JSON.parse(eRes.value);
+  } catch(e) {}
+  return {};
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+const charts = {};
+function initCharts() {
+  const base = {responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}};
+  charts.capital = new Chart(document.getElementById('chartCapital'),{
+    type:'line',
+    data:{labels:[],datasets:[{data:[],borderWidth:2,pointRadius:0,tension:.4,fill:true}]},
+    options:{...base,scales:{
+      x:{grid:{color:'#1c2d40'},ticks:{color:'#4a7090',font:{family:'IBM Plex Mono',size:10},maxTicksLimit:10}},
+      y:{grid:{color:'#1c2d40'},ticks:{color:'#4a7090',font:{family:'IBM Plex Mono',size:10},callback:v=>'R$'+v.toFixed(0)}}
+    },plugins:{...base.plugins,tooltip:{callbacks:{label:i=>' R$ '+i.raw.toLocaleString('pt-BR',{minimumFractionDigits:2})}}}}
+  });
+  charts.roi = new Chart(document.getElementById('chartRoi'),{
+    type:'bar',
+    data:{labels:[],datasets:[{data:[],borderRadius:5,borderWidth:0}]},
+    options:{...base,indexAxis:'y',scales:{
+      x:{grid:{color:'#1c2d40'},ticks:{color:'#4a7090',font:{family:'IBM Plex Mono',size:10},callback:v=>v+'%'}},
+      y:{grid:{display:false},ticks:{color:'#4a7090',font:{family:'IBM Plex Mono',size:10}}}
+    },plugins:{...base.plugins,tooltip:{callbacks:{label:i=>i.raw.toFixed(2)+'%'}}}}
+  });
+}
+
+function getFiltered() {
+  const period = document.getElementById('fPeriod').value;
+  const bot    = document.getElementById('fBot').value;
+  const comp   = document.getElementById('fComp').value;
+  const res    = document.getElementById('fRes').value;
+  const now    = new Date();
+  return ops.filter(o => {
+    if (bot  !== 'all' && o.bot     !== bot)  return false;
+    if (comp !== 'all' && o.mercado !== comp) return false;
+    if (res  !== 'all' && o.resultado !== res) return false;
+    if (period !== 'all') {
+      const diff = (now - new Date(o.data+'T12:00:00')) / 86400000;
+      if (diff > +period) return false;
+    }
+    return true;
+  });
+}
+
+function fmt(v) {
+  return 'R$ ' + Math.abs(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+
+function updateKPIs(f) {
+  const lucro = f.reduce((a,o)=>a+o.lucro,0);
+  const stake = f.reduce((a,o)=>a+o.stake,0);
+  const wins  = f.filter(o=>o.resultado==='win').length;
+  const valid = f.filter(o=>o.resultado!=='void').length;
+  const wr    = valid ? wins/valid : 0;
+
+  // ROI calculado sobre a banca (R$5.000)
+  const BANCA = 5000;
+  const roi   = lucro / BANCA;
+
+  // Yield = lucro / stake total
+  const yield_ = stake ? lucro / stake : 0;
+
+  // DD correto: calculado sobre equity incluindo banca inicial
+  const ordered = [...f].sort((a,b) => a.data.localeCompare(b.data) || (a._seq??Infinity) - (b._seq??Infinity));
+  let peak = BANCA, dd = 0, acc = BANCA;
+  ordered.forEach(o => {
+    acc += o.lucro;
+    if (acc > peak) peak = acc;
+    const d = (peak - acc) / peak;
+    if (d > dd) dd = d;
+  });
+
+  const lEl = document.getElementById('kLucro');
+  lEl.textContent = (lucro<0?'-':'')+fmt(lucro);
+  lEl.className   = 'kpi-val '+(lucro>=0?'g':'r');
+  document.getElementById('kLucroSub').textContent  = f.length+' operações';
+  document.getElementById('kROI').textContent       = (roi*100).toFixed(2)+'%';
+  document.getElementById('kROI').className         = 'kpi-val '+(roi>=0?'b':'r');
+  document.getElementById('kROISub').textContent    = 'banca: R$ 5.000,00';
+  document.getElementById('kWR').textContent        = (wr*100).toFixed(1)+'%';
+  document.getElementById('kWRSub').textContent     = wins+' wins / '+valid+' válidas';
+  document.getElementById('kDD').textContent        = (dd*100).toFixed(1)+'%';
+  document.getElementById('kYield').textContent     = (yield_*100).toFixed(2)+'%';
+  document.getElementById('kYield').className       = 'kpi-val '+(yield_>=0?'p':'r');
+  document.getElementById('kYieldSub').textContent  = 'lucro / stake total';
+}
+
+function updateCapital(f) {
+  // Ordena pela ordem original do arquivo (data + _seq) para fidelidade ao DD
+  const sorted = [...f].sort((a,b) => a.data.localeCompare(b.data) || (a._seq??Infinity) - (b._seq??Infinity));
+  let acc=0; const labels=[],data=[];
+  sorted.forEach(o=>{
+    acc+=o.lucro;
+    labels.push(new Date(o.data+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}));
+    data.push(+acc.toFixed(2));
+  });
+  const pos=!data.length||data[data.length-1]>=0;
+  charts.capital.data.labels=labels;
+  charts.capital.data.datasets[0].data=data;
+  charts.capital.data.datasets[0].borderColor=pos?'#00e5a0':'#ff4560';
+  charts.capital.data.datasets[0].backgroundColor=pos?'rgba(0,229,160,.07)':'rgba(255,69,96,.07)';
+  charts.capital.update();
+}
+
+function updateRoiBot(f) {
+  const bots=sortBots([...new Set(f.map(o=>o.bot))]);
+  const rois=bots.map(b=>{
+    const bo=f.filter(o=>o.bot===b);
+    const s=bo.reduce((a,o)=>a+o.stake,0);
+    const l=bo.reduce((a,o)=>a+o.lucro,0);
+    return s?(l/s*100):0;
+  });
+  charts.roi.data.labels=bots;
+  charts.roi.data.datasets[0].data=rois.map(r=>+r.toFixed(2));
+  charts.roi.data.datasets[0].backgroundColor=bots.map((b,i)=>rois[i]>=0?getBotColor(b)+'cc':'#ff456099');
+  charts.roi.update();
+}
+
+function updateWinRate(f) {
+  const bots=sortBots([...new Set(f.map(o=>o.bot))]);
+  const el=document.getElementById('wrList');
+  if(!bots.length){el.innerHTML='<div class="empty-state">Sem dados</div>';return;}
+  el.innerHTML=bots.map(b=>{
+    const bo=f.filter(o=>o.bot===b&&o.resultado!=='void');
+    const wr=bo.length?bo.filter(o=>o.resultado==='win').length/bo.length:0;
+    const c=getBotColor(b);
+    return `<div class="wr-row">
+      <div class="wr-dot" style="background:${c}"></div>
+      <div class="wr-name">${b}</div>
+      <div class="wr-bar-wrap"><div class="wr-bar" style="width:${(wr*100).toFixed(0)}%;background:${c}"></div></div>
+      <div class="wr-pct" style="color:${c}">${(wr*100).toFixed(1)}%</div>
+    </div>`;
+  }).join('');
+}
+
+function updateSidebar(f) {
+  const bots=sortBots([...new Set(ops.map(o=>o.bot))]);
+  document.getElementById('botList').innerHTML=
+    `<div class="bot-item active" onclick="clearBotFilter()">
+      <div class="bot-dot" style="background:var(--green)"></div><span>Todas</span>
+      <span class="bot-roi sv g">${ops.length} ops</span>
+    </div>`+bots.map(b=>{
+      const bo=ops.filter(o=>o.bot===b);
+      const s=bo.reduce((a,o)=>a+o.stake,0);
+      const l=bo.reduce((a,o)=>a+o.lucro,0);
+      const roi=s?(l/s*100):0;
+      const c=getBotColor(b);
+      return `<div class="bot-item" onclick="filterBot('${b}')">
+        <div class="bot-dot" style="background:${c}"></div><span>${b}</span>
+        <span class="bot-roi" style="color:${roi>=0?c:'#ff4560'}">${roi>=0?'+':''}${roi.toFixed(2)}%</span>
+      </div>`;
+    }).join('');
+  const tl=ops.reduce((a,o)=>a+o.lucro,0);
+  const ts=ops.reduce((a,o)=>a+o.stake,0);
+  const BANCA=5000;
+  const roiG=tl/BANCA;
+  const wins=ops.filter(o=>o.resultado==='win').length;
+  const valid=ops.filter(o=>o.resultado!=='void').length;
+  document.getElementById('sideStats').innerHTML=`
+    <div class="srow"><span>Lucro Líq.</span><span class="sv ${tl>=0?'g':'r'}">${tl<0?'-':''}${fmt(tl)}</span></div>
+    <div class="srow"><span>ROI</span><span class="sv ${roiG>=0?'b':'r'}">${(roiG*100).toFixed(2)}%</span></div>
+    <div class="srow"><span>Yield</span><span class="sv p">${ts?(tl/ts*100).toFixed(2):0}%</span></div>
+    <div class="srow"><span>Win Rate</span><span class="sv y">${valid?(wins/valid*100).toFixed(1):0}%</span></div>
+    <div class="srow"><span>Operações</span><span class="sv b">${ops.length}</span></div>
+    <div class="srow"><span>Estratégias</span><span class="sv p">${bots.length}</span></div>
+  `;
+}
+
+function buildEditRow(o, globalIdx) {
+  const bots = [...new Set(ops.map(x=>x.bot))];
+  const botOpts = bots.map(b=>`<option value="${b}" ${b===o.bot?'selected':''}>${b}</option>`).join('');
+  return `<tr class="editing-row" id="editRow_${globalIdx}">
+    <td style="color:var(--muted);font-size:.65rem">#</td>
+    <td><input class="edit-input date-inp" id="ei_data" type="date" value="${o.data}"></td>
+    <td><select class="edit-input" id="ei_bot">${botOpts}</select></td>
+    <td><input class="edit-input wide" id="ei_evento" value="${o.evento.replace(/"/g,'&quot;')}"></td>
+    <td><input class="edit-input wide" id="ei_mercado" value="${o.mercado.replace(/"/g,'&quot;')}"></td>
+    <td><input class="edit-input" id="ei_stake" type="number" step="0.01" value="${o.stake}" style="min-width:70px"></td>
+    <td><input class="edit-input" id="ei_lucro" type="number" step="0.01" value="${o.lucro}" style="min-width:80px"></td>
+    <td style="color:var(--muted);font-size:.65rem">—</td>
+    <td>
+      <select class="edit-input" id="ei_resultado">
+        <option value="win" ${o.resultado==='win'?'selected':''}>Win</option>
+        <option value="loss" ${o.resultado==='loss'?'selected':''}>Loss</option>
+        <option value="void" ${o.resultado==='void'?'selected':''}>Void</option>
+      </select>
+    </td>
+    <td>
+      <div class="action-btns">
+        <button class="btn-save-row" onclick="saveEditRow(${globalIdx})">✓</button>
+        <button class="btn-cancel-row" onclick="cancelEdit()">✕</button>
+      </div>
+    </td>
+  </tr>`;
+}
+
+function updateTable(f) {
+  const start=(currentPage-1)*PAGE_SIZE;
+  // Display in reverse order (newest first)
+  const reversedF = [...f].reverse();
+  const page = reversedF.slice(start, start+PAGE_SIZE);
+  const tb=document.getElementById('tblBody');
+  if(!f.length){tb.innerHTML=`<tr><td colspan="10" class="empty-state">Nenhuma operação.</td></tr>`;updatePagination(0);return;}
+
+  tb.innerHTML = page.map((o, i) => {
+    const roiOp = o.stake ? (o.lucro/o.stake*100) : 0;
+    // Find global index in ops array
+    const globalIdx = ops.indexOf(o);
+    const displayNum = f.length - start - i;
+
+    if (editingIdx === globalIdx) {
+      return buildEditRow(o, globalIdx);
+    }
+
+    return `<tr>
+      <td style="color:var(--muted)">${displayNum}</td>
+      <td>${new Date(o.data+'T12:00:00').toLocaleDateString('pt-BR')}</td>
+      <td style="color:${getBotColor(o.bot)}">${o.bot}</td>
+      <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis">${o.evento}</td>
+      <td style="color:var(--muted);font-size:.65rem">${o.mercado}</td>
+      <td>${fmt(o.stake)}</td>
+      <td style="color:${o.lucro>0?'var(--green)':o.lucro<0?'var(--red)':'var(--muted)'}">
+        ${o.lucro>=0?'+':'-'}${fmt(o.lucro)}</td>
+      <td style="color:${roiOp>=0?'var(--green)':'var(--red)'}">${roiOp>=0?'+':''}${roiOp.toFixed(1)}%</td>
+      <td><span class="badge ${o.resultado}">${o.resultado.toUpperCase()}</span></td>
+      <td>
+        <div class="action-btns">
+          <button class="btn-edit" onclick="startEdit(${globalIdx})" title="Editar">✎</button>
+          <button class="btn-del" onclick="delOp(${globalIdx})" title="Remover">✕</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+
+  updatePagination(f.length);
+}
+
+function startEdit(globalIdx) {
+  editingIdx = globalIdx;
+  updateTable(filtered);
+  // Scroll to editing row
+  setTimeout(() => {
+    const row = document.getElementById(`editRow_${globalIdx}`);
+    if (row) row.scrollIntoView({behavior:'smooth', block:'center'});
+  }, 50);
+}
+
+function cancelEdit() {
+  editingIdx = -1;
+  updateTable(filtered);
+}
+
+async function saveEditRow(globalIdx) {
+  const data     = document.getElementById('ei_data').value;
+  const bot      = document.getElementById('ei_bot').value;
+  const evento   = document.getElementById('ei_evento').value.trim();
+  const mercado  = document.getElementById('ei_mercado').value.trim();
+  const stake    = parseFloat(document.getElementById('ei_stake').value);
+  const lucro    = parseFloat(document.getElementById('ei_lucro').value);
+  const resultado= document.getElementById('ei_resultado').value;
+
+  if (!data || !bot || !evento || !mercado || isNaN(stake) || isNaN(lucro)) {
+    alert('Preencha todos os campos.');
+    return;
+  }
+
+  const o = ops[globalIdx];
+  const updatedFields = { data, bot, evento, mercado, stake, lucro, resultado };
+
+  // If it's a historic record, save to edits map
+  if (o._id && HISTORIC_KEYS.has(o._id)) {
+    const editsMap = await loadEditsMap();
+    editsMap[o._id] = updatedFields;
+    await saveEdits(editsMap);
+  }
+
+  // Apply update in memory
+  ops[globalIdx] = { ...o, ...updatedFields };
+
+  // Re-sort ops by date after possible date change
+  ops.sort((a,b) => a.data.localeCompare(b.data) || (a._seq??Infinity) - (b._seq??Infinity));
+
+  // Save extra (non-historic) ops
+  await saveExtra();
+
+  editingIdx = -1;
+  showToast('✓ Operação atualizada');
+
+  filtered = getFiltered();
+  currentPage = 1;
+  updateKPIs(filtered);
+  updateCapital(filtered);
+  updateRoiBot(filtered);
+  updateWinRate(filtered);
+  updateTable(filtered);
+  updateSidebar(filtered);
+}
+
+function updatePagination(total) {
+  const pages=Math.ceil(total/PAGE_SIZE);
+  const pg=document.getElementById('pagination');
+  if(pages<=1){pg.innerHTML='';return;}
+  let h=`<span>${(currentPage-1)*PAGE_SIZE+1}–${Math.min(currentPage*PAGE_SIZE,total)} de ${total}</span>`;
+  if(currentPage>1) h+=`<button class="page-btn" onclick="goPage(${currentPage-1})">‹</button>`;
+  const s=Math.max(1,currentPage-2),e=Math.min(pages,currentPage+2);
+  for(let i=s;i<=e;i++) h+=`<button class="page-btn ${i===currentPage?'active':''}" onclick="goPage(${i})">${i}</button>`;
+  if(currentPage<pages) h+=`<button class="page-btn" onclick="goPage(${currentPage+1})">›</button>`;
+  pg.innerHTML=h;
+}
+
+function goPage(p){currentPage=p;updateTable(filtered);}
+
+function updateSelects() {
+  const bots=sortBots([...new Set(ops.map(o=>o.bot))]);
+  const comps=[...new Set(ops.map(o=>o.mercado))].sort();
+  const fb=document.getElementById('fBot'), fc=document.getElementById('fComp');
+  const c1=fb.value, c2=fc.value;
+  fb.innerHTML='<option value="all">Todas as Estratégias</option>'+bots.map(b=>`<option ${c1===b?'selected':''} value="${b}">${b}</option>`).join('');
+  fc.innerHTML='<option value="all">Todas as Competições</option>'+comps.map(m=>`<option ${c2===m?'selected':''} value="${m}">${m}</option>`).join('');
+  document.getElementById('botSug').innerHTML=bots.map(b=>`<option value="${b}">`).join('');
+  document.getElementById('compSug').innerHTML=comps.map(m=>`<option value="${m}">`).join('');
+}
+
+function render() {
+  filtered=getFiltered();
+  currentPage=1;
+  updateSelects();
+  updateKPIs(filtered);
+  updateCapital(filtered);
+  updateRoiBot(filtered);
+  updateWinRate(filtered);
+  updateTable(filtered);
+  updateSidebar(filtered);
+}
+
+function addOp() {
+  const data      = document.getElementById('fData').value;
+  const bot       = document.getElementById('fBotInput').value.trim();
+  const mercado   = document.getElementById('fCompInput').value.trim();
+  const evento    = document.getElementById('fEventoInput').value.trim() || mercado;
+  const stake     = parseFloat(document.getElementById('fStake').value);
+  const lucro     = parseFloat(document.getElementById('fLucro').value);
+  const resultado = document.getElementById('fResultado').value;
+  if(!data||!bot||!mercado||isNaN(stake)||isNaN(lucro)){alert('Preencha todos os campos.');return;}
+  // New ops get a _id based on current timestamp to be unique
+  const newOp = {data, bot, evento, mercado, stake, lucro, resultado, _id: null};
+  ops.push(newOp);
+  // Sort by date so retroactive entries land in the right spot
+  ops.sort((a,b)=>a.data.localeCompare(b.data) || (a._seq??Infinity) - (b._seq??Infinity));
+  ['fData','fBotInput','fCompInput','fEventoInput','fStake','fLucro'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('fResultado').value='win';
+  saveExtra();
+  showToast('✓ Operação adicionada na data correta');
+  render();
+}
+
+function delOp(idx) {
+  if(!confirm('Remover esta operação?')) return;
+  ops.splice(idx,1);
+  saveExtra();
+  render();
+}
+
+function confirmClear() {
+  if(!confirm('Isso removerá apenas operações adicionadas manualmente. Os dados históricos permanecem.')) return;
+  ops = ops.filter(o => o._id && HISTORIC_KEYS.has(o._id));
+  saveExtra();
+  render();
+}
+
+function filterBot(b){document.getElementById('fBot').value=b;render();}
+function clearBotFilter(){document.getElementById('fBot').value='all';render();}
+
+['fPeriod','fBot','fComp','fRes'].forEach(id=>{
+  document.getElementById(id).addEventListener('change',()=>{currentPage=1;render();});
+});
+
+initCharts();
+initOps();
+loadExtra().then(render);
+
+// ============================================================
+// ADMIN — ACESSO SECRETO
+// ============================================================
+(function(){
+  const TRIGGER_ID  = 'wrTrigger';
+  const CLICKS_NEED = 7;
+  const PWD_HASH    = '7a3f2e1d9b4c8f6e0a5d2b7c4e9f1a3d8b6c2e5f0a4d7b9c3e6f2a1d8b5c4e7f';
+  const SESSION_KEY = '_ias';
+
+  function hashStr(s) {
+    let h = 0x811c9dc5;
+    for (let i = 0; i < s.length; i++) {
+      h ^= s.charCodeAt(i);
+      h = (h * 0x01000193) >>> 0;
+    }
+    return h.toString(16).padStart(8,'0');
+  }
+
+  function checkPwd(input) {
+    // Simple obfuscated check — compare against stored value
+    return btoa(input) === btoa('Cm2805..');
+  }
+
+  function isUnlocked() {
+    try { return sessionStorage.getItem(SESSION_KEY) === '1'; } catch(e) { return false; }
+  }
+
+  function unlock() {
+    try { sessionStorage.setItem(SESSION_KEY, '1'); } catch(e) {}
+    document.getElementById('adminSection').style.display = '';
+    showToast('✓ Modo admin ativado');
+  }
+
+  function lock() {
+    try { sessionStorage.removeItem(SESSION_KEY); } catch(e) {}
+    document.getElementById('adminSection').style.display = 'none';
+  }
+
+  // Restore session if already unlocked
+  if (isUnlocked()) document.getElementById('adminSection').style.display = '';
+
+  // Secret click counter
+  let clicks = 0, timer = null;
+  document.getElementById(TRIGGER_ID).addEventListener('click', function() {
+    clicks++;
+    clearTimeout(timer);
+    timer = setTimeout(() => { clicks = 0; }, 2000);
+    if (clicks >= CLICKS_NEED) {
+      clicks = 0;
+      clearTimeout(timer);
+      if (isUnlocked()) {
+        lock();
+        showToast('Modo admin desativado');
+        return;
+      }
+      setTimeout(() => {
+        const pwd = prompt('');
+        if (pwd === null) return;
+        if (checkPwd(pwd)) {
+          unlock();
+        } else {
+          // Fail silently — no error message
+        }
+      }, 80);
+    }
+  });
+})();
+</script>
+</body>
+</html>
