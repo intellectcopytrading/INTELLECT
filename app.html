@@ -209,7 +209,7 @@ tbody td{padding:.6rem .8rem;white-space:nowrap}
 <!-- ═══════════════════════════════════════════
      SCREEN: LOGIN
 ════════════════════════════════════════════ -->
-<div class="screen" id="screenLogin">
+<div class="screen active" id="screenLogin">
   <div class="card" style="max-width:380px">
     <div class="logo">INTELLECT<span>CT</span></div>
     <div class="logo-sub">// ÁREA DO CLIENTE</div>
@@ -1504,11 +1504,9 @@ function pedirPermissaoNotificacao() {
 // INIT: check session
 // ═══════════════════════════════════════════════════════
 async function init() {
-  // Mostra login imediatamente — nunca fica tela preta
-  showLogin();
-
+  // screenLogin já tem active no HTML — aparece imediatamente
   const session = getSession();
-  if (!session) return;
+  if (!session) return; // fica no login
 
   if (session.type === 'admin') { loadAdminPanel(); return; }
 
