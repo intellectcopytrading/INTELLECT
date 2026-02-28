@@ -714,18 +714,19 @@ function renderClientConta() {
       <div class="field"><label>Nome Completo</label><input type="text" id="p-nome" value="${c.nome||''}" placeholder="Seu nome completo"></div>
       <div class="field"><label>WhatsApp</label><input type="text" id="p-whats" value="${c.whats||''}" placeholder="(00) 00000-0000"></div>
       <div class="field"><label>Plano Desejado</label>
-        <select id="p-plano" onchange="renderClientConta()">
+        <select id="p-plano" onchange="toggleBetfairCliente()">
           <option value="">Selecione seu plano...</option>
           <option value="Telegram - R$97/mês" ${c.plano==='Telegram - R$97/mês'?'selected':''}>Telegram · R$97/mês</option>
           <option value="Bot por Estratégia - R$117 + 10%" ${c.plano==='Bot por Estratégia - R$117 + 10%'?'selected':''}>Bot por Estratégia · R$117 + 10% lucro</option>
           <option value="Anual - R$1.997 + 15%" ${c.plano==='Anual - R$1.997 + 15%'?'selected':''}>Anual · R$1.997 + 15% lucro</option>
         </select>
       </div>
-      ${!isTelegram ? `<div class="field"><label>Banca Inicial na Betfair (R$)</label><input type="number" id="p-banca" value="${c.banca||''}" placeholder="Ex: 5000"></div>` : ''}
+      ${!isTelegram ? `<div id="p-banca-wrap"><div class="field"><label>Banca Inicial na Betfair (R$)</label><input type="number" id="p-banca" value="${c.banca||''}" placeholder="Ex: 5000"></div></div>` : '<div id="p-banca-wrap" style="display:none"><div class="field"><label>Banca Inicial na Betfair (R$)</label><input type="number" id="p-banca" value="" placeholder="Ex: 5000"></div></div>'}
     </div>
 
     ${!isTelegram ? `
-    <div class="panel" style="max-width:540px">
+    <div id="p-betfair-wrap" class="panel" style="max-width:540px">` : `
+    <div id="p-betfair-wrap" class="panel" style="max-width:540px;display:none">`}
       <div class="panel-title">🔑 Acesso Betfair</div>
       <div class="sec-notice">🔒 Seus dados são criptografados e acessados apenas pela nossa equipe para configurar os bots.</div>
       <div class="field"><label>Login / Email Betfair</label><input type="email" id="p-bfl" value="${c.bfLogin||''}" placeholder="email@betfair.com"></div>
@@ -1113,6 +1114,15 @@ function renderAdminNovo() {
     </div>
   `;
   toggleBetfairAdmin();
+}
+
+function toggleBetfairCliente() {
+  const plano = document.getElementById('p-plano')?.value || '';
+  const isTelegram = plano.includes('Telegram');
+  const bancaField = document.getElementById('p-banca-wrap');
+  const bfFields = document.getElementById('p-betfair-wrap');
+  if (bancaField) bancaField.style.display = isTelegram ? 'none' : 'block';
+  if (bfFields) bfFields.style.display = isTelegram ? 'none' : 'block';
 }
 
 function toggleBetfairAdmin() {
