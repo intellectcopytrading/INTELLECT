@@ -1,0 +1,1348 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Intellect CopyTrading</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#060910;--s1:#0a0f18;--s2:#0d1520;--s3:#111d2a;
+  --border:#162030;--border2:#1e2f42;
+  --green:#00e5a0;--green2:#00b87a;--green3:#00ffa8;
+  --text:#ddeeff;--muted:#4a7090;--muted2:#6a90b0;
+  --red:#ff4560;--yellow:#ffc233;--blue:#38b6ff;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',sans-serif;display:flex;align-items:center;justify-content:center}
+
+/* ── GRID BG ── */
+body::before{content:'';position:fixed;inset:0;
+  background-image:linear-gradient(rgba(0,229,160,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(0,229,160,.025) 1px,transparent 1px);
+  background-size:60px 60px;pointer-events:none;z-index:0}
+body::after{content:'';position:fixed;top:-200px;left:50%;transform:translateX(-50%);
+  width:700px;height:500px;background:radial-gradient(ellipse,rgba(0,229,160,.07) 0%,transparent 70%);
+  pointer-events:none;z-index:0}
+
+/* ── SCREENS ── */
+.screen{position:fixed;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;z-index:1;padding:1rem;overflow-y:auto}
+.screen.active{display:flex}
+
+/* ── CARD ── */
+.card{background:var(--s1);border:1px solid var(--border);border-radius:16px;padding:2.4rem 2rem;width:100%;max-width:460px;position:relative}
+.card-wide{max-width:1100px}
+
+/* ── LOGO ── */
+.logo{font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:3px;color:var(--green);text-align:center;margin-bottom:.3rem}
+.logo span{color:var(--muted2)}
+.logo-sub{font-family:'IBM Plex Mono',monospace;font-size:.6rem;letter-spacing:3px;color:var(--muted);text-align:center;margin-bottom:2rem}
+
+/* ── FORMS ── */
+.field{margin-bottom:1.1rem}
+.field label{display:block;font-family:'IBM Plex Mono',monospace;font-size:.62rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:.4rem}
+.field input,.field select{width:100%;background:var(--s2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:.8rem;padding:.65rem .9rem;outline:none;transition:border .2s}
+.field input:focus,.field select:focus{border-color:var(--green2)}
+.field select option{background:var(--s2)}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:.8rem}
+
+.btn{width:100%;background:linear-gradient(135deg,var(--green2),var(--green));color:#060910;font-family:'IBM Plex Mono',monospace;font-size:.78rem;font-weight:600;letter-spacing:1px;border:none;border-radius:8px;padding:.8rem;cursor:pointer;transition:all .25s;margin-top:.5rem}
+.btn:hover{opacity:.88;transform:translateY(-1px)}
+.btn-ghost{background:transparent;border:1px solid var(--border2);color:var(--muted2)}
+.btn-ghost:hover{border-color:var(--green2);color:var(--green)}
+.btn-sm{padding:.5rem 1.2rem;width:auto;font-size:.7rem;margin-top:0}
+.btn-danger{background:linear-gradient(135deg,#c0392b,var(--red));color:#fff}
+
+.link{font-family:'IBM Plex Mono',monospace;font-size:.68rem;color:var(--muted);text-align:center;margin-top:1rem;cursor:pointer}
+.link span{color:var(--green);cursor:pointer}
+.link span:hover{text-decoration:underline}
+
+.err{font-family:'IBM Plex Mono',monospace;font-size:.68rem;color:var(--red);margin-top:.4rem;display:none}
+.err.show{display:block}
+
+.divider{display:flex;align-items:center;gap:.8rem;margin:1.2rem 0}
+.divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--border)}
+.divider span{font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--muted);letter-spacing:2px}
+
+/* ── DASHBOARD LAYOUT ── */
+.app-layout{position:fixed;inset:0;display:none;z-index:1}
+.app-layout.active{display:grid;grid-template-columns:220px 1fr;grid-template-rows:56px 1fr}
+
+/* TOPBAR */
+.topbar{grid-column:1/-1;background:rgba(6,9,16,.9);border-bottom:1px solid var(--border);backdrop-filter:blur(20px);display:flex;align-items:center;justify-content:space-between;padding:0 1.5rem}
+.topbar-logo{font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:3px;color:var(--green)}
+.topbar-logo span{color:var(--muted2)}
+.topbar-user{display:flex;align-items:center;gap:.8rem;font-family:'IBM Plex Mono',monospace;font-size:.7rem;color:var(--muted2)}
+.topbar-user .dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green)}
+.btn-logout{background:none;border:1px solid var(--border);border-radius:6px;color:var(--muted);font-family:'IBM Plex Mono',monospace;font-size:.65rem;padding:.3rem .7rem;cursor:pointer;transition:all .2s}
+.btn-logout:hover{border-color:var(--red);color:var(--red)}
+
+/* SIDEBAR */
+.sidebar{background:var(--s1);border-right:1px solid var(--border);padding:1.2rem .8rem;display:flex;flex-direction:column;gap:.3rem;overflow-y:auto}
+.nav-item{display:flex;align-items:center;gap:.6rem;padding:.6rem .8rem;border-radius:8px;border:1px solid transparent;cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:.72rem;color:var(--muted2);transition:all .2s}
+.nav-item:hover{background:var(--s3);color:var(--text)}
+.nav-item.active{background:rgba(0,229,160,.08);border-color:rgba(0,229,160,.2);color:var(--green)}
+.nav-icon{font-size:1rem;width:18px;text-align:center}
+.nav-divider{height:1px;background:var(--border);margin:.5rem 0}
+.nav-label{font-size:.55rem;letter-spacing:3px;text-transform:uppercase;color:var(--muted);padding:.4rem .8rem}
+
+/* MAIN CONTENT */
+.main{overflow-y:auto;padding:1.5rem;display:flex;flex-direction:column;gap:1.2rem}
+
+/* KPI GRID */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:.8rem}
+.kpi{background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:1.1rem 1.3rem;position:relative;overflow:hidden}
+.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.kpi.g::before{background:linear-gradient(90deg,var(--green),transparent)}
+.kpi.b::before{background:linear-gradient(90deg,var(--blue),transparent)}
+.kpi.y::before{background:linear-gradient(90deg,var(--yellow),transparent)}
+.kpi.r::before{background:linear-gradient(90deg,var(--red),transparent)}
+.kpi-label{font-family:'IBM Plex Mono',monospace;font-size:.58rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:.4rem}
+.kpi-val{font-family:'Bebas Neue',sans-serif;font-size:2rem;letter-spacing:1px;line-height:1}
+.kpi-val.g{color:var(--green)}.kpi-val.b{color:var(--blue)}.kpi-val.y{color:var(--yellow)}.kpi-val.r{color:var(--red)}
+.kpi-sub{font-family:'IBM Plex Mono',monospace;font-size:.58rem;color:var(--muted);margin-top:.3rem}
+
+/* STATUS BADGE */
+.badge{display:inline-flex;align-items:center;gap:.35rem;padding:.2rem .6rem;border-radius:4px;font-family:'IBM Plex Mono',monospace;font-size:.62rem;font-weight:600;letter-spacing:1px}
+.badge.active-badge{background:rgba(0,229,160,.12);color:var(--green)}
+.badge.inactive-badge{background:rgba(255,69,96,.12);color:var(--red)}
+.badge.pending-badge{background:rgba(255,194,51,.12);color:var(--yellow)}
+.badge-dot{width:5px;height:5px;border-radius:50%;background:currentColor}
+.badge-dot.pulse{animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* CARDS */
+.panel{background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:1.3rem}
+.panel-title{font-family:'IBM Plex Mono',monospace;font-size:.65rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:1rem;display:flex;justify-content:space-between;align-items:center}
+.panels-row{display:grid;grid-template-columns:2fr 1fr;gap:1rem}
+
+/* CHART */
+.chart-wrap{height:200px}
+
+/* INFO ROWS */
+.info-row{display:flex;justify-content:space-between;align-items:center;padding:.55rem 0;border-bottom:1px solid var(--border2);font-size:.8rem}
+.info-row:last-child{border-bottom:none}
+.info-label{color:var(--muted2);font-weight:300}
+.info-val{font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:.78rem}
+
+/* ADMIN TABLE */
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.72rem}
+thead th{font-family:'IBM Plex Mono',monospace;font-size:.58rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);padding:.6rem .8rem;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap}
+tbody tr{border-bottom:1px solid var(--border2);transition:background .15s;cursor:pointer}
+tbody tr:hover{background:var(--s2)}
+tbody td{padding:.6rem .8rem;white-space:nowrap}
+
+/* MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);z-index:100;display:none;align-items:center;justify-content:center;padding:1rem}
+.modal-overlay.open{display:flex}
+.modal{background:var(--s1);border:1px solid var(--border2);border-radius:16px;padding:2rem;width:100%;max-width:520px;max-height:90vh;overflow-y:auto}
+.modal-title{font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:2px;margin-bottom:1.5rem;color:var(--green)}
+.modal-close{position:absolute;top:1rem;right:1rem;background:none;border:none;color:var(--muted);font-size:1.2rem;cursor:pointer;padding:.2rem .5rem}
+.modal-close:hover{color:var(--red)}
+
+/* TOAST */
+.toast{position:fixed;bottom:1.5rem;right:1.5rem;background:var(--s3);border:1px solid var(--green2);border-radius:8px;padding:.7rem 1.2rem;font-family:'IBM Plex Mono',monospace;font-size:.7rem;color:var(--green);z-index:999;transform:translateY(20px);opacity:0;transition:all .3s;pointer-events:none}
+.toast.show{transform:translateY(0);opacity:1}
+.toast.err-toast{border-color:var(--red);color:var(--red)}
+
+/* EMPTY STATE */
+.empty{text-align:center;padding:3rem 1rem;color:var(--muted);font-family:'IBM Plex Mono',monospace;font-size:.72rem}
+.empty-icon{font-size:2.5rem;margin-bottom:.8rem;opacity:.4}
+
+/* SCROLLBAR */
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+
+/* SECURITY NOTICE */
+.sec-notice{background:rgba(255,194,51,.05);border:1px solid rgba(255,194,51,.15);border-radius:8px;padding:.7rem 1rem;font-family:'IBM Plex Mono',monospace;font-size:.62rem;color:#ffc233;margin-bottom:1.2rem;display:flex;gap:.5rem;align-items:flex-start;line-height:1.5}
+
+/* RESPONSIVE */
+@media(max-width:700px){
+  .app-layout.active{grid-template-columns:1fr;grid-template-rows:56px auto 1fr}
+  .sidebar{display:none}
+  .panels-row{grid-template-columns:1fr}
+  .field-row{grid-template-columns:1fr}
+}
+
+/* ANIMATIONS */
+@keyframes fadeInUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+.card{animation:fadeInUp .4s ease both}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════
+     SCREEN: CADASTRO
+════════════════════════════════════════════ -->
+<div class="screen active" id="screenRegister">
+  <div class="card" style="max-width:380px">
+    <div class="logo">INTELLECT<span>CT</span></div>
+    <div class="logo-sub">// CRIAR CONTA</div>
+
+    <div class="field">
+      <label>Email</label>
+      <input type="email" id="reg-email" placeholder="seu@email.com">
+    </div>
+    <div class="field">
+      <label>Senha</label>
+      <input type="password" id="reg-senha" placeholder="mínimo 6 caracteres" onkeydown="if(event.key==='Enter')doRegister()">
+    </div>
+
+    <div class="err" id="reg-err"></div>
+    <button class="btn" onclick="doRegister()">CRIAR CONTA →</button>
+    <div class="link">Já tem conta? <span onclick="showLogin()">Fazer login</span></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     SCREEN: LOGIN
+════════════════════════════════════════════ -->
+<div class="screen" id="screenLogin">
+  <div class="card" style="max-width:380px">
+    <div class="logo">INTELLECT<span>CT</span></div>
+    <div class="logo-sub">// ÁREA DO CLIENTE</div>
+
+    <div class="field">
+      <label>Email</label>
+      <input type="email" id="login-email" placeholder="seu@email.com">
+    </div>
+    <div class="field">
+      <label>Senha</label>
+      <input type="password" id="login-senha" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <div class="err" id="login-err"></div>
+    <button class="btn" onclick="doLogin()">ENTRAR →</button>
+    <div class="link">Não tem conta? <span onclick="showRegister()">Cadastrar agora</span></div>
+    <div class="link" style="margin-top:.3rem"><span onclick="showAdminLogin()" style="color:var(--muted);font-size:.58rem">Acesso admin</span></div>
+
+    <!-- HIDDEN ADMIN TRIGGER — click logo 7x -->
+    <div id="adminTrigger" onclick="adminClick()" style="position:absolute;top:0;left:0;width:60px;height:60px;cursor:default;opacity:0"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     SCREEN: ADMIN LOGIN
+════════════════════════════════════════════ -->
+<div class="screen" id="screenAdminLogin">
+  <div class="card" style="max-width:360px">
+    <div class="logo" style="color:var(--yellow)">INTELLECT<span style="color:var(--muted2)">ADMIN</span></div>
+    <div class="logo-sub">// ACESSO RESTRITO</div>
+    <div class="field">
+      <label>Senha Admin</label>
+      <input type="password" id="admin-pwd" placeholder="••••••••" onkeydown="if(event.key==='Enter')doAdminLogin()">
+    </div>
+    <div class="err" id="admin-err"></div>
+    <button class="btn" style="background:linear-gradient(135deg,#b8860b,var(--yellow));color:#060910" onclick="doAdminLogin()">ACESSAR →</button>
+    <div class="link"><span onclick="showLogin()">← Voltar</span></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     APP: DASHBOARD CLIENTE
+════════════════════════════════════════════ -->
+<div class="app-layout" id="appClient">
+  <div class="topbar">
+    <div class="topbar-logo">INTELLECT<span>CT</span></div>
+    <div class="topbar-user">
+      <div class="dot"></div>
+      <span id="topbar-name">—</span>
+      <a href="https://intellectcopytrading.github.io/LANDING/" target="_blank" style="font-family:'IBM Plex Mono',monospace;font-size:.62rem;color:var(--muted);text-decoration:none;border:1px solid var(--border);border-radius:6px;padding:.3rem .7rem;margin-right:.3rem">← LANDING</a>
+      <button class="btn-logout" onclick="doLogout()">SAIR</button>
+    </div>
+  </div>
+  <div class="sidebar">
+    <div class="nav-label">Menu</div>
+    <div class="nav-item active" onclick="clientTab('dashboard',this)"><span class="nav-icon">📊</span>Dashboard</div>
+    <div class="nav-item" onclick="clientTab('estrategias',this)"><span class="nav-icon">🤖</span>Estratégias</div>
+    <div class="nav-item" onclick="clientTab('operacoes',this)"><span class="nav-icon">📋</span>Operações</div>
+    <div class="nav-item" onclick="clientTab('conta',this)"><span class="nav-icon">👤</span>Minha Conta</div>
+    <div class="nav-divider"></div>
+    <div class="nav-label">Suporte</div>
+    <div class="nav-item" onclick="openWpp()"><span class="nav-icon">💬</span>WhatsApp</div>
+  </div>
+  <div class="main" id="clientMain"></div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     APP: PAINEL ADMIN
+════════════════════════════════════════════ -->
+<div class="app-layout" id="appAdmin">
+  <div class="topbar">
+    <div class="topbar-logo" style="color:var(--yellow)">INTELLECT<span style="color:var(--muted2)">ADMIN</span></div>
+    <div class="topbar-user">
+      <div class="dot" style="background:var(--yellow);box-shadow:0 0 8px var(--yellow)"></div>
+      <span>Matheus · Admin</span>
+      <button class="btn-logout" onclick="doLogout()">SAIR</button>
+    </div>
+  </div>
+  <div class="sidebar">
+    <div class="nav-label">Gestão</div>
+    <div class="nav-item active" onclick="adminTab('clientes',this)"><span class="nav-icon">👥</span>Clientes</div>
+    <div class="nav-item" onclick="adminTab('novo',this)"><span class="nav-icon">➕</span>Novo Cliente</div>
+    <div class="nav-item" onclick="adminTab('estrategias',this)"><span class="nav-icon">🤖</span>Estratégias</div>
+    <div class="nav-divider"></div>
+    <div class="nav-label">Sistema</div>
+    <div class="nav-item" onclick="adminTab('config',this)"><span class="nav-icon">⚙️</span>Configurações</div>
+  </div>
+  <div class="main" id="adminMain"></div>
+</div>
+
+<!-- MODAL EDITAR CLIENTE -->
+<div class="modal-overlay" id="modalCliente">
+  <div class="modal" style="position:relative">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <div class="modal-title" id="modal-title">DETALHES DO CLIENTE</div>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// SUPABASE CONFIG — substitua com suas credenciais
+// ═══════════════════════════════════════════════════════
+const SUPABASE_URL  = 'https://refmtoahyxldnyejwkwt.supabase.co';
+const SUPABASE_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJlZm10b2FoeXhsZG55ZWp3a3d0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIyNzg5NjgsImV4cCI6MjA4Nzg1NDk2OH0.zJwSQcP5_KMubQhyUvfrmGfPe-Gr-dAi8uLBiourWMg';
+const ADMIN_PWD     = 'Cm2805..';
+
+// Cliente HTTP Supabase (sem SDK, fetch puro)
+const sb = {
+  async get(table, filters = {}) {
+    let url = `${SUPABASE_URL}/rest/v1/${table}?select=*`;
+    for (const [k, v] of Object.entries(filters)) url += `&${k}=eq.${encodeURIComponent(v)}`;
+    const r = await fetch(url, { headers: sbHeaders() });
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  },
+  async insert(table, data) {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
+      method: 'POST',
+      headers: { ...sbHeaders(), 'Prefer': 'return=representation' },
+      body: JSON.stringify(data)
+    });
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  },
+  async update(table, id, data) {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.${id}`, {
+      method: 'PATCH',
+      headers: { ...sbHeaders(), 'Prefer': 'return=representation' },
+      body: JSON.stringify(data)
+    });
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  },
+  async delete(table, id) {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.${id}`, {
+      method: 'DELETE',
+      headers: sbHeaders()
+    });
+    if (!r.ok) throw new Error(await r.text());
+    return true;
+  }
+};
+
+function sbHeaders() {
+  return {
+    'Content-Type': 'application/json',
+    'apikey': SUPABASE_KEY,
+    'Authorization': `Bearer ${SUPABASE_KEY}`
+  };
+}
+
+// ═══════════════════════════════════════════════════════
+// SESSION (localStorage — só guarda quem está logado)
+// ═══════════════════════════════════════════════════════
+function getSession()      { try { return JSON.parse(localStorage.getItem('ict_session')); } catch { return null; } }
+function saveSession(data) { localStorage.setItem('ict_session', JSON.stringify(data)); }
+function clearSession()    { localStorage.removeItem('ict_session'); }
+
+// ═══════════════════════════════════════════════════════
+// HELPERS SUPABASE (substitui funções de storage antigas)
+// ═══════════════════════════════════════════════════════
+async function getClients() {
+  try { return await sb.get('clientes'); } catch { return []; }
+}
+async function saveClients() { /* não usada — saves são individuais */ }
+
+// ═══════════════════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════════════════
+function show(id) {
+  document.querySelectorAll('.screen,.app-layout').forEach(el => {
+    el.classList.remove('active');
+  });
+  document.getElementById(id).classList.add('active');
+}
+function showLogin()    { show('screenLogin'); }
+function showRegister() { show('screenRegister'); }
+function showAdminLogin(){ show('screenAdminLogin'); setTimeout(()=>document.getElementById('admin-pwd').focus(),100); }
+
+// ═══════════════════════════════════════════════════════
+// ADMIN HIDDEN TRIGGER (7 clicks on top-left corner)
+// ═══════════════════════════════════════════════════════
+let adminClicks = 0, adminTimer = null;
+function adminClick() {
+  adminClicks++;
+  clearTimeout(adminTimer);
+  adminTimer = setTimeout(() => { adminClicks = 0; }, 2000);
+  if (adminClicks >= 7) { adminClicks = 0; showAdminLogin(); }
+}
+
+// ═══════════════════════════════════════════════════════
+// REGISTER
+// ═══════════════════════════════════════════════════════
+async function doRegister() {
+  const email = document.getElementById('reg-email').value.trim().toLowerCase();
+  const senha = document.getElementById('reg-senha').value;
+  const errEl = document.getElementById('reg-err');
+  errEl.classList.remove('show');
+
+  if (!email || !senha) { errEl.textContent='Preencha email e senha.'; errEl.classList.add('show'); return; }
+  if (senha.length < 6)  { errEl.textContent='Senha mínima de 6 caracteres.'; errEl.classList.add('show'); return; }
+
+  try {
+    const [novo] = await sb.insert('clientes', {
+      email, senha, nome:'', whats:'', plano:'', banca:0,
+      bf_login:'', bf_senha:'', status:'Pendente', bot_ativo:false,
+      roi:0, lucro:0, ops:0,
+      vencimento: new Date(Date.now() + 30*24*60*60*1000).toISOString()
+    });
+    saveSession({ type:'client', id: novo.id, email });
+    showToast('✓ Conta criada! Complete seu cadastro abaixo.');
+    loadClientDashboard(mapClient(novo));
+  } catch(e) {
+    if (e.message.includes('duplicate') || e.message.includes('unique')) {
+      errEl.textContent='Este email já está cadastrado.';
+    } else {
+      errEl.textContent='Erro ao criar conta. Verifique sua conexão.';
+    }
+    errEl.classList.add('show');
+  }
+}
+
+function calcVencimento(plano) {
+  const d = new Date();
+  if (plano.includes('Mensal')) d.setMonth(d.getMonth() + 1);
+  else if (plano.includes('6 Meses')) d.setMonth(d.getMonth() + 6);
+  else if (plano.includes('Anual')) d.setFullYear(d.getFullYear() + 1);
+  else d.setMonth(d.getMonth() + 1);
+  return d.toISOString();
+}
+
+// ═══════════════════════════════════════════════════════
+// LOGIN
+// ═══════════════════════════════════════════════════════
+// Mapeia snake_case do Supabase → camelCase do app
+function mapClient(r) {
+  return {
+    id: r.id, email: r.email, senha: r.senha,
+    nome: r.nome||'', whats: r.whats||'', plano: r.plano||'',
+    banca: r.banca||0, bfLogin: r.bf_login||'', bfSenha: r.bf_senha||'',
+    status: r.status||'Pendente', botAtivo: r.bot_ativo||false,
+    roi: r.roi||0, lucro: r.lucro||0, ops: r.ops||0,
+    vencimento: r.vencimento||new Date().toISOString(),
+    nota: r.nota||'', cadastro: r.cadastro||new Date().toISOString(),
+    historico: []
+  };
+}
+
+async function doLogin() {
+  const email = document.getElementById('login-email').value.trim().toLowerCase();
+  const senha = document.getElementById('login-senha').value;
+  const errEl = document.getElementById('login-err');
+  errEl.classList.remove('show');
+
+  try {
+    const rows = await sb.get('clientes', { email });
+    const client = rows.find(c => c.senha === senha);
+    if (!client) { errEl.textContent='Email ou senha incorretos.'; errEl.classList.add('show'); return; }
+
+    // Buscar histórico
+    const hist = await sb.get('historico', { cliente_id: client.id });
+    const c = mapClient(client);
+    c.historico = hist.map(h => ({ data: h.data, banca: h.banca, lucro: h.lucro, roi: h.roi }));
+
+    saveSession({ type:'client', id: client.id, email });
+    loadClientDashboard(c);
+  } catch(e) {
+    errEl.textContent='Erro de conexão. Tente novamente.'; errEl.classList.add('show');
+  }
+}
+
+async function doAdminLogin() {
+  const pwd   = document.getElementById('admin-pwd').value;
+  const errEl = document.getElementById('admin-err');
+  errEl.classList.remove('show');
+  if (pwd !== ADMIN_PWD) { errEl.textContent='Senha incorreta.'; errEl.classList.add('show'); return; }
+  saveSession({ type:'admin' });
+  loadAdminPanel();
+}
+
+async function doLogout() {
+  clearSession();
+  showLogin();
+  document.getElementById('login-email').value='';
+  document.getElementById('login-senha').value='';
+}
+
+// ═══════════════════════════════════════════════════════
+// CLIENT DASHBOARD
+// ═══════════════════════════════════════════════════════
+let currentClient = null;
+let chartInstance = null;
+
+function loadClientDashboard(client) {
+  currentClient = client;
+  document.getElementById('topbar-name').textContent = client.nome.split(' ')[0];
+  show('appClient');
+  renderClientDashboard();
+}
+
+function clientTab(tab, el) {
+  document.querySelectorAll('#appClient .nav-item').forEach(n => n.classList.remove('active'));
+  el.classList.add('active');
+  if (tab === 'dashboard')    renderClientDashboard();
+  else if (tab === 'estrategias') renderClientEstrategias();
+  else if (tab === 'operacoes')   renderClientOps();
+  else if (tab === 'conta')   renderClientConta();
+}
+
+function renderClientDashboard() {
+  const c  = currentClient;
+  const vc = new Date(c.vencimento);
+  const diasRestantes = Math.max(0, Math.round((vc - new Date()) / 86400000));
+  const statusBadge = c.botAtivo
+    ? `<span class="badge active-badge"><span class="badge-dot pulse"></span>BOT ATIVO</span>`
+    : c.status === 'Pendente'
+      ? `<span class="badge pending-badge"><span class="badge-dot"></span>AGUARDANDO CONFIG.</span>`
+      : `<span class="badge inactive-badge"><span class="badge-dot"></span>BOT INATIVO</span>`;
+
+  // Gráfico simulado a partir do histórico
+  const hist = c.historico.length > 0 ? c.historico : gerarHistoricoDemo(c);
+
+  const main = document.getElementById('clientMain');
+  main.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.5rem">
+      <div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:2px">MEU DASHBOARD</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:.62rem;color:var(--muted)">${c.plano}</div>
+      </div>
+      ${statusBadge}
+    </div>
+
+    ${!c.nome || !c.bfLogin ? `
+    <div style="background:rgba(255,194,51,.07);border:1px solid rgba(255,194,51,.2);border-radius:10px;padding:1rem 1.3rem;font-family:'IBM Plex Mono',monospace;font-size:.72rem;color:var(--yellow)">
+      ⚠️ Cadastro incompleto — preencha seus dados para ativar os bots. <span style="color:var(--green);cursor:pointer;text-decoration:underline" onclick="clientTab('conta', document.querySelectorAll('#appClient .nav-item')[2])">Completar agora →</span>
+    </div>` : ''}
+
+    <div class="kpi-grid">
+      <div class="kpi g">
+        <div class="kpi-label">ROI no Período</div>
+        <div class="kpi-val g">${c.roi >= 0 ? '+' : ''}${c.roi.toFixed(1)}%</div>
+        <div class="kpi-sub">desde o início</div>
+      </div>
+      <div class="kpi g">
+        <div class="kpi-label">Lucro em R$</div>
+        <div class="kpi-val g">${c.lucro >= 0 ? '+' : ''}R$${c.lucro.toFixed(0)}</div>
+        <div class="kpi-sub">banca inicial: R$${c.banca.toLocaleString('pt-BR')}</div>
+      </div>
+      <div class="kpi b">
+        <div class="kpi-label">Operações</div>
+        <div class="kpi-val b">${c.ops}</div>
+        <div class="kpi-sub">registradas no período</div>
+      </div>
+      <div class="kpi ${diasRestantes <= 7 ? 'r' : 'y'}">
+        <div class="kpi-label">Vencimento do Plano</div>
+        <div class="kpi-val ${diasRestantes <= 7 ? 'r' : 'y'}">${diasRestantes}d</div>
+        <div class="kpi-sub">${vc.toLocaleDateString('pt-BR')}</div>
+      </div>
+    </div>
+
+    <div class="panels-row">
+      <div class="panel">
+        <div class="panel-title">Evolução da Banca (R$)</div>
+        <div class="chart-wrap"><canvas id="clientChart"></canvas></div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">Resumo da Conta</div>
+        <div class="info-row"><span class="info-label">Plano</span><span class="info-val">${c.plano.split(' ·')[0]}</span></div>
+        <div class="info-row"><span class="info-label">Status</span><span class="info-val">${c.status}</span></div>
+        <div class="info-row"><span class="info-label">Banca Inicial</span><span class="info-val">R$${Number(c.banca).toLocaleString('pt-BR')}</span></div>
+        <div class="info-row"><span class="info-label">Banca Atual</span><span class="info-val" style="color:var(--green)">R$${(Number(c.banca) + c.lucro).toLocaleString('pt-BR')}</span></div>
+        <div class="info-row"><span class="info-label">Cadastro</span><span class="info-val">${new Date(c.cadastro).toLocaleDateString('pt-BR')}</span></div>
+        <div class="info-row"><span class="info-label">Vencimento</span><span class="info-val">${vc.toLocaleDateString('pt-BR')}</span></div>
+      </div>
+    </div>
+
+    ${diasRestantes <= 7 ? `
+    <div style="background:rgba(255,69,96,.07);border:1px solid rgba(255,69,96,.2);border-radius:10px;padding:1rem 1.3rem;font-family:'IBM Plex Mono',monospace;font-size:.72rem;color:var(--red)">
+      ⚠️ Seu plano vence em <strong>${diasRestantes} dias</strong>. Entre em contato via WhatsApp para renovar e manter os bots ativos.
+      <button class="btn btn-sm" style="margin-top:.7rem;background:linear-gradient(135deg,#c0392b,var(--red));color:#fff" onclick="openWpp()">RENOVAR AGORA</button>
+    </div>` : ''}
+  `;
+
+  // Chart
+  if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
+  const ctx = document.getElementById('clientChart').getContext('2d');
+  chartInstance = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: hist.map(h => h.data),
+      datasets: [{
+        data: hist.map(h => h.banca),
+        borderColor: '#00e5a0',
+        backgroundColor: 'rgba(0,229,160,.08)',
+        borderWidth: 2,
+        pointRadius: 2,
+        tension: 0.4,
+        fill: true
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false },
+        tooltip: { backgroundColor: '#0d1520', borderColor: '#1e2f42', borderWidth: 1,
+          titleColor: '#6a90b0', bodyColor: '#00e5a0',
+          titleFont: { family: 'IBM Plex Mono', size: 10 },
+          bodyFont: { family: 'IBM Plex Mono', size: 11 },
+          callbacks: { label: ctx => ` R$ ${ctx.parsed.y.toFixed(0)}` }
+        }
+      },
+      scales: {
+        x: { grid: { color: 'rgba(22,32,48,.8)' }, ticks: { color: '#4a7090', font: { family: 'IBM Plex Mono', size: 9 }, maxTicksLimit: 6 } },
+        y: { grid: { color: 'rgba(22,32,48,.8)' }, ticks: { color: '#4a7090', font: { family: 'IBM Plex Mono', size: 9 }, callback: v => 'R$'+v } }
+      }
+    }
+  });
+}
+
+function gerarHistoricoDemo(c) {
+  // Gera histórico simulado baseado no ROI/lucro do cliente
+  const pts = 30;
+  const result = [];
+  let banca = Number(c.banca);
+  const lucroTotal = c.lucro;
+  for (let i = 0; i < pts; i++) {
+    const d = new Date(); d.setDate(d.getDate() - (pts - i));
+    const progresso = i / (pts - 1);
+    const variacao = (Math.random() - 0.45) * (Math.abs(lucroTotal) * 0.08);
+    banca = Number(c.banca) + (lucroTotal * progresso) + variacao;
+    result.push({ data: d.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit' }), banca: parseFloat(banca.toFixed(2)) });
+  }
+  return result;
+}
+
+function renderClientOps() {
+  const c = currentClient;
+  document.getElementById('clientMain').innerHTML = `
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:2px">OPERAÇÕES</div>
+    ${c.historico.length === 0 ? `
+      <div class="panel"><div class="empty"><div class="empty-icon">📋</div>Nenhuma operação registrada ainda.<br>Aguarde a configuração dos bots.</div></div>
+    ` : `
+      <div class="panel">
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Data</th><th>Banca</th><th>Lucro</th><th>ROI</th></tr></thead>
+            <tbody>${c.historico.map(h=>`
+              <tr>
+                <td>${h.data}</td>
+                <td style="font-family:'IBM Plex Mono',monospace">R$${h.banca?.toFixed(0)||'—'}</td>
+                <td style="color:${(h.lucro||0)>=0?'var(--green)':'var(--red)'};font-family:'IBM Plex Mono',monospace">${(h.lucro||0)>=0?'+':''}R$${(h.lucro||0).toFixed(2)}</td>
+                <td style="color:var(--blue);font-family:'IBM Plex Mono',monospace">${(h.roi||0).toFixed(1)}%</td>
+              </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `}
+  `;
+}
+
+function renderClientConta() {
+  const c = currentClient;
+  const isTelegram = c.plano && c.plano.includes('Telegram');
+  const incompleto = !c.nome || !c.whats || !c.plano || (!isTelegram && !c.bfLogin);
+  document.getElementById('clientMain').innerHTML = `
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:2px">MINHA CONTA</div>
+
+    ${incompleto ? `
+    <div style="background:rgba(255,194,51,.07);border:1px solid rgba(255,194,51,.2);border-radius:10px;padding:1rem 1.3rem;font-family:'IBM Plex Mono',monospace;font-size:.72rem;color:var(--yellow);margin-bottom:.2rem">
+      ⚠️ Complete seu cadastro abaixo para ativar os bots. Nossa equipe será notificada assim que você salvar.
+    </div>` : ''}
+
+    <div class="panel" style="max-width:540px">
+      <div class="panel-title">Dados Pessoais</div>
+      <div class="field"><label>Nome Completo</label><input type="text" id="p-nome" value="${c.nome||''}" placeholder="Seu nome completo"></div>
+      <div class="field"><label>WhatsApp</label><input type="text" id="p-whats" value="${c.whats||''}" placeholder="(00) 00000-0000"></div>
+      <div class="field"><label>Plano Desejado</label>
+        <select id="p-plano" onchange="renderClientConta()">
+          <option value="">Selecione seu plano...</option>
+          <option value="Telegram - R$97/mês" ${c.plano==='Telegram - R$97/mês'?'selected':''}>Telegram · R$97/mês</option>
+          <option value="Mensal - R$397/mês" ${c.plano==='Mensal - R$397/mês'?'selected':''}>Mensal · R$397/mês</option>
+          <option value="6 Meses - R$1.097" ${c.plano==='6 Meses - R$1.097'?'selected':''}>6 Meses · R$1.097</option>
+          <option value="Anual - R$1.597" ${c.plano==='Anual - R$1.597'?'selected':''}>Anual · R$1.597</option>
+        </select>
+      </div>
+      ${!isTelegram ? `<div class="field"><label>Banca Inicial na Betfair (R$)</label><input type="number" id="p-banca" value="${c.banca||''}" placeholder="Ex: 5000"></div>` : ''}
+    </div>
+
+    ${!isTelegram ? `
+    <div class="panel" style="max-width:540px">
+      <div class="panel-title">🔑 Acesso Betfair</div>
+      <div class="sec-notice">🔒 Seus dados são criptografados e acessados apenas pela nossa equipe para configurar os bots.</div>
+      <div class="field"><label>Login / Email Betfair</label><input type="email" id="p-bfl" value="${c.bfLogin||''}" placeholder="email@betfair.com"></div>
+      <div class="field"><label>Senha Betfair</label><input type="password" id="p-bfs" value="${c.bfSenha||''}" placeholder="••••••••"></div>
+    </div>` : ''}
+
+    <div class="panel" style="max-width:540px">
+      <div class="panel-title">Segurança</div>
+      <div class="field"><label>Email da Conta</label><input type="text" value="${c.email}" disabled style="opacity:.5"></div>
+      <div class="field"><label>Nova Senha (deixe em branco para manter)</label><input type="password" id="p-newsenha" placeholder="••••••••"></div>
+    </div>
+
+    <div style="max-width:540px">
+      <div class="err" id="p-err"></div>
+      <button class="btn" onclick="saveProfile()" style="max-width:540px">💾 SALVAR CADASTRO →</button>
+      <div style="margin-top:1rem">
+        <button class="btn btn-ghost" onclick="openWpp()" style="max-width:540px">💬 FALAR COM SUPORTE</button>
+      </div>
+    </div>
+  `;
+}
+
+async function saveProfile() {
+  const nome    = document.getElementById('p-nome').value.trim();
+  const whats   = document.getElementById('p-whats').value.trim();
+  const plano   = document.getElementById('p-plano').value;
+  const isTelegram = plano.includes('Telegram');
+  const banca   = isTelegram ? 0 : parseFloat(document.getElementById('p-banca').value);
+  const bfLogin = isTelegram ? '' : document.getElementById('p-bfl').value.trim();
+  const bfSenha = isTelegram ? '' : document.getElementById('p-bfs').value;
+  const newSenha= document.getElementById('p-newsenha').value;
+  const errEl   = document.getElementById('p-err');
+  errEl.classList.remove('show');
+
+  if (!nome||!whats||!plano||(!isTelegram&&(isNaN(banca)||!bfLogin||!bfSenha))) {
+    errEl.textContent='Preencha todos os campos obrigatórios.'; errEl.classList.add('show'); return;
+  }
+  if (newSenha && newSenha.length < 6) {
+    errEl.textContent='Nova senha mínima de 6 caracteres.'; errEl.classList.add('show'); return;
+  }
+
+  const patch = { nome, whats, plano, banca, bf_login:bfLogin, bf_senha:bfSenha,
+    vencimento: calcVencimento(plano) };
+  if (newSenha) patch.senha = newSenha;
+
+  try {
+    const [updated] = await sb.update('clientes', currentClient.id, patch);
+    currentClient = { ...currentClient, ...mapClient(updated) };
+    document.getElementById('topbar-name').textContent = nome.split(' ')[0];
+    showToast('✓ Cadastro salvo! Nossa equipe irá configurar seus bots em breve.');
+  } catch(e) {
+    errEl.textContent='Erro ao salvar. Tente novamente.'; errEl.classList.add('show');
+  }
+}
+
+function openWpp() {
+  window.open('https://wa.me/5597991637163?text=Olá%20Matheus!%20Sou%20cliente%20e%20preciso%20de%20ajuda.', '_blank');
+}
+
+// ═══════════════════════════════════════════════════════
+// ESTRATÉGIAS (VITRINE DE BOTS)
+// ═══════════════════════════════════════════════════════
+const ESTRATEGIAS = [
+  { id: 1, nome: 'Estratégia 01', mercado: 'Over Gols', desc: 'Operações voltadas ao mercado de Over Gols. Alta frequência de entradas com gestão automatizada de stake.', icone: '⚽' },
+  { id: 2, nome: 'Estratégia 02', mercado: 'Under Gols', desc: 'Operações voltadas ao mercado de Under Gols. Ideal para jogos de baixo volume ofensivo.', icone: '🛡️' },
+  { id: 3, nome: 'Estratégia 03', mercado: 'Match Odds', desc: 'Operações no mercado de Match Odds com análise de valor esperado e automação completa.', icone: '🎯' },
+];
+const PIX_KEY   = '07bc03ad-72bf-41f1-bf4f-585bcbd2324e';
+const WPP_ADMIN = '5597991637163';
+const VALOR_BOT = 117;
+
+async function renderClientEstrategias() {
+  let contratadas = [];
+  try { contratadas = await sb.get('estrategias_clientes', { cliente_id: currentClient.id }); } catch {}
+  let stats = {};
+  try {
+    const allOps = await sb.get('estrategias_ops');
+    ESTRATEGIAS.forEach(e => {
+      const ops = allOps.filter(o => o.estrategia_id === e.id);
+      const ganhos = ops.filter(o => o.resultado === 'green').length;
+      stats[e.id] = { total: ops.length, acerto: ops.length > 0 ? ((ganhos/ops.length)*100).toFixed(1) : '—' };
+    });
+  } catch {}
+
+  const main = document.getElementById('clientMain');
+  main.innerHTML = `
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:2px">ESTRATÉGIAS</div>
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--muted);margin-top:-.5rem">Contrate um bot por R$117 · 10% do lucro mensal</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:1rem;margin-top:.5rem">
+      ${ESTRATEGIAS.map(e => {
+        const contrato = contratadas.find(c => c.estrategia_id === e.id);
+        const ativa = contrato && contrato.ativo;
+        const pendente = contrato && !contrato.ativo && !contrato.pagamento_confirmado;
+        const aguardando = contrato && !contrato.ativo && contrato.pagamento_confirmado;
+        const st = stats[e.id] || { total: 0, acerto: '—' };
+        return '<div class="panel" style="position:relative;border-color:' + (ativa?'rgba(0,229,160,.3)':aguardando?'rgba(255,194,51,.3)':'var(--border)') + '">'
+          + (ativa ? '<div style="position:absolute;top:.8rem;right:.8rem"><span class="badge active-badge"><span class="badge-dot pulse"></span>ATIVO</span></div>'
+            : pendente ? '<div style="position:absolute;top:.8rem;right:.8rem"><span class="badge pending-badge">AGUARD. PAGTO</span></div>'
+            : aguardando ? '<div style="position:absolute;top:.8rem;right:.8rem"><span class="badge pending-badge" style="color:var(--yellow)">ATIVANDO...</span></div>' : '')
+          + '<div style="font-size:2rem;margin-bottom:.5rem">' + e.icone + '</div>'
+          + '<div style="font-family:Bebas Neue,sans-serif;font-size:1.2rem;letter-spacing:2px;color:var(--green)">' + e.nome + '</div>'
+          + '<div style="font-family:IBM Plex Mono,monospace;font-size:.6rem;letter-spacing:2px;color:var(--muted);margin-bottom:.8rem">' + e.mercado.toUpperCase() + '</div>'
+          + '<div style="font-size:.8rem;color:var(--muted2);line-height:1.5;margin-bottom:1rem">' + e.desc + '</div>'
+          + '<div style="display:flex;gap:1.5rem;margin-bottom:1.2rem">'
+          + '<div><div style="font-family:IBM Plex Mono,monospace;font-size:.55rem;color:var(--muted);letter-spacing:1px">TAXA DE ACERTO</div>'
+          + '<div style="font-family:Bebas Neue,sans-serif;font-size:1.4rem;color:' + (st.acerto==='—'?'var(--muted)':'var(--green)') + '">' + st.acerto + (st.acerto!=='—'?'%':'') + '</div></div>'
+          + '<div><div style="font-family:IBM Plex Mono,monospace;font-size:.55rem;color:var(--muted);letter-spacing:1px">OPERAÇÕES</div>'
+          + '<div style="font-family:Bebas Neue,sans-serif;font-size:1.4rem;color:var(--blue)">' + st.total + '</div></div></div>'
+          + (ativa ? '<div style="background:rgba(0,229,160,.05);border:1px solid rgba(0,229,160,.15);border-radius:8px;padding:.8rem;font-family:IBM Plex Mono,monospace;font-size:.65rem;color:var(--green)">✓ Bot ativo · Lucro do mês: R$' + (contrato.lucro_mes||0).toFixed(2) + '<br><span style="color:var(--muted)">10% = R$' + ((contrato.lucro_mes||0)*0.1).toFixed(2) + ' a pagar no fechamento</span></div>'
+            : pendente ? '<div style="background:rgba(255,194,51,.05);border:1px solid rgba(255,194,51,.15);border-radius:8px;padding:.8rem;font-family:IBM Plex Mono,monospace;font-size:.65rem;color:var(--yellow)">⏳ Aguardando confirmação do pagamento PIX.<br><button class="btn btn-sm" style="margin-top:.6rem" onclick="abrirWppComprovante(' + e.id + ')">📲 ENVIAR COMPROVANTE</button></div>'
+            : aguardando ? '<div style="background:rgba(255,194,51,.05);border:1px solid rgba(255,194,51,.15);border-radius:8px;padding:.8rem;font-family:IBM Plex Mono,monospace;font-size:.65rem;color:var(--yellow)">✓ Pagamento confirmado! Ativação em até 24h.</div>'
+            : '<button class="btn" onclick="abrirModalContratar(' + e.id + ',\'' + e.nome + '\')">CONTRATAR · R$' + VALOR_BOT + '</button>')
+          + '</div>';
+      }).join('')}
+    </div>
+    ${contratadas.filter(c => c.ativo && (c.lucro_mes||0) > 0).length > 0 ? '<div class="panel" style="border-color:rgba(255,194,51,.2)"><div class="panel-title" style="color:var(--yellow)">⚠️ Pagamento Mensal Pendente</div>'
+      + contratadas.filter(c => c.ativo && (c.lucro_mes||0)>0).map(c=>{
+        const e=ESTRATEGIAS.find(x=>x.id===c.estrategia_id);
+        const valor=(c.lucro_mes*0.1).toFixed(2);
+        return '<div class="info-row"><span class="info-label">' + e?.nome + ' · 10% de R$' + c.lucro_mes.toFixed(2) + '</span><button class="btn btn-sm" onclick="pagarMensal(' + c.id + ',' + valor + ',\'' + e?.nome + '\')">PAGAR R$' + valor + '</button></div>';
+      }).join('') + '</div>' : ''}
+  `;
+  if (!document.getElementById('modalContratar')) {
+    const m = document.createElement('div');
+    m.className='modal-overlay'; m.id='modalContratar';
+    m.innerHTML='<div class="modal" style="position:relative;max-width:420px"><button class="modal-close" onclick="fecharModalContratar()">✕</button><div class="modal-title" id="mc-title">CONTRATAR</div><div id="mc-body"></div></div>';
+    document.body.appendChild(m);
+  }
+}
+
+function abrirModalContratar(estrategiaId, nome) {
+  document.getElementById('mc-title').textContent = 'CONTRATAR · ' + nome.toUpperCase();
+  document.getElementById('mc-body').innerHTML = '<div style="font-family:IBM Plex Mono,monospace;font-size:.72rem;color:var(--muted2);line-height:1.7;margin-bottom:1.2rem">Ativação por <strong style="color:var(--green)">R$' + VALOR_BOT + '</strong> via PIX.<br>Mensalmente: <strong style="color:var(--green)">10% do lucro gerado</strong>.<br><strong>Sem lucro, sem cobrança.</strong></div>'
+    + '<div class="field"><label>Banca na Betfair (R$)</label><input type="number" id="mc-banca" placeholder="Ex: 1000" value="' + (currentClient.banca||'') + '"></div>'
+    + '<div class="field"><label>Login Betfair</label><input type="email" id="mc-bfl" placeholder="email@betfair.com" value="' + (currentClient.bfLogin||'') + '"></div>'
+    + '<div class="field"><label>Senha Betfair</label><input type="password" id="mc-bfs" placeholder="••••••••"></div>'
+    + '<div style="background:var(--s2);border:1px solid var(--border2);border-radius:10px;padding:1.2rem;margin:1rem 0;text-align:center">'
+    + '<div style="font-family:IBM Plex Mono,monospace;font-size:.6rem;color:var(--muted);letter-spacing:2px;margin-bottom:.5rem">CHAVE PIX</div>'
+    + '<div style="font-family:IBM Plex Mono,monospace;font-size:.75rem;color:var(--green);word-break:break-all;margin-bottom:.8rem">' + PIX_KEY + '</div>'
+    + '<div style="font-family:Bebas Neue,sans-serif;font-size:1.8rem;color:var(--green)">R$ ' + VALOR_BOT + ',00</div>'
+    + '<button class="btn btn-sm" style="margin-top:.6rem" onclick="copiarPix()">📋 COPIAR CHAVE PIX</button></div>'
+    + '<div class="err" id="mc-err"></div>'
+    + '<button class="btn" onclick="confirmarContratacao(' + estrategiaId + ')">✓ JÁ PAGUEI · ENVIAR COMPROVANTE</button>'
+    + '<div style="font-family:IBM Plex Mono,monospace;font-size:.6rem;color:var(--muted);text-align:center;margin-top:.8rem">Ativação em até 24h após confirmação</div>';
+  document.getElementById('modalContratar').classList.add('open');
+}
+function fecharModalContratar() { document.getElementById('modalContratar').classList.remove('open'); }
+function copiarPix() { navigator.clipboard.writeText(PIX_KEY).then(()=>showToast('✓ Chave PIX copiada!')); }
+
+async function confirmarContratacao(estrategiaId) {
+  const banca  = parseFloat(document.getElementById('mc-banca').value);
+  const bfLogin= document.getElementById('mc-bfl').value.trim();
+  const bfSenha= document.getElementById('mc-bfs').value;
+  const errEl  = document.getElementById('mc-err');
+  errEl.classList.remove('show');
+  if (isNaN(banca)||!bfLogin||!bfSenha) { errEl.textContent='Preencha banca, login e senha Betfair.'; errEl.classList.add('show'); return; }
+  try {
+    await sb.update('clientes', currentClient.id, { banca, bf_login:bfLogin, bf_senha:bfSenha });
+    currentClient.banca=banca; currentClient.bfLogin=bfLogin; currentClient.bfSenha=bfSenha;
+    await sb.insert('estrategias_clientes', { cliente_id:currentClient.id, estrategia_id:estrategiaId, ativo:false, pagamento_confirmado:false, lucro_mes:0 });
+    fecharModalContratar();
+    showToast('✓ Registrado! Envie o comprovante no WhatsApp.');
+    abrirWppComprovante(estrategiaId);
+    renderClientEstrategias();
+  } catch(e) { errEl.textContent='Erro ao registrar. Tente novamente.'; errEl.classList.add('show'); }
+}
+function abrirWppComprovante(estrategiaId) {
+  const e=ESTRATEGIAS.find(x=>x.id===estrategiaId);
+  const msg=encodeURIComponent('Olá Matheus! Sou '+(currentClient.nome||currentClient.email)+' e acabei de pagar R$'+VALOR_BOT+' para ativar a '+(e?.nome||'Estratégia')+'. Segue o comprovante PIX:');
+  window.open('https://wa.me/'+WPP_ADMIN+'?text='+msg,'_blank');
+}
+function pagarMensal(contratoId, valor, nomeEstrategia) {
+  const msg=encodeURIComponent('Olá Matheus! Sou '+(currentClient.nome||currentClient.email)+'. Pagamento mensal de R$'+valor+' referente à '+nomeEstrategia+'. Segue comprovante:');
+  navigator.clipboard.writeText(PIX_KEY).then(()=>{ showToast('✓ Chave PIX copiada!'); setTimeout(()=>window.open('https://wa.me/'+WPP_ADMIN+'?text='+msg,'_blank'),1000); });
+}
+
+// ═══════════════════════════════════════════════════════
+// ADMIN PANEL
+// ═══════════════════════════════════════════════════════
+function loadAdminPanel() {
+  show('appAdmin');
+  adminTab('clientes', document.querySelector('#appAdmin .nav-item'));
+}
+
+function adminTab(tab, el) {
+  document.querySelectorAll('#appAdmin .nav-item').forEach(n => n.classList.remove('active'));
+  el.classList.add('active');
+  if (tab === 'clientes') renderAdminClientes();
+  else if (tab === 'novo') renderAdminNovo();
+  else if (tab === 'estrategias') renderAdminEstrategias();
+  else if (tab === 'config') renderAdminConfig();
+}
+
+async function renderAdminClientes() {
+  const clients = await getClients();
+  const ativos   = clients.filter(c => c.bot_ativo).length;
+  const pendentes= clients.filter(c => c.status==='Pendente').length;
+
+  document.getElementById('adminMain').innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.5rem">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:2px">GESTÃO DE CLIENTES</div>
+      <div style="display:flex;gap:.5rem">
+        <span class="badge active-badge">${ativos} ativos</span>
+        ${pendentes>0?`<span class="badge pending-badge">${pendentes} pendentes</span>`:''}
+      </div>
+    </div>
+    <div class="kpi-grid">
+      <div class="kpi g"><div class="kpi-label">Total de Clientes</div><div class="kpi-val g">${clients.length}</div></div>
+      <div class="kpi b"><div class="kpi-label">Bots Ativos</div><div class="kpi-val b">${ativos}</div></div>
+      <div class="kpi y"><div class="kpi-label">Pendentes</div><div class="kpi-val y">${pendentes}</div></div>
+      <div class="kpi g"><div class="kpi-label">MRR (estimado)</div><div class="kpi-val g">R$${calcMRR(clients.map(mapClient)).toLocaleString('pt-BR')}</div></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">Clientes <span style="color:var(--muted);font-size:.6rem">clique para editar</span></div>
+      ${clients.length===0?`<div class="empty"><div class="empty-icon">👥</div>Nenhum cliente cadastrado ainda.</div>`:`
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Nome</th><th>Plano</th><th>Status</th><th>Bot</th><th>ROI</th><th>Lucro</th><th>Venc.</th><th>Cadastro</th></tr></thead>
+        <tbody>${clients.map(c=>`
+          <tr onclick="openClientModal('${c.id}')">
+            <td><div style="font-weight:500">${c.nome||'<span style="color:var(--muted)">Sem nome</span>'}</div><div style="font-family:'IBM Plex Mono',monospace;font-size:.62rem;color:var(--muted)">${c.email}</div></td>
+            <td style="font-family:'IBM Plex Mono',monospace;font-size:.7rem">${(c.plano||'—').split(' ·')[0]}</td>
+            <td><span class="badge ${c.status==='Ativo'?'active':c.status==='Pendente'?'pending':'inactive'}-badge">${c.status||'Pendente'}</span></td>
+            <td><span class="badge ${c.bot_ativo?'active':'inactive'}-badge">${c.bot_ativo?'✓ ON':'✗ OFF'}</span></td>
+            <td style="font-family:'IBM Plex Mono',monospace;color:${(c.roi||0)>=0?'var(--green)':'var(--red)'}">${(c.roi||0)>=0?'+':''}${(c.roi||0).toFixed(1)}%</td>
+            <td style="font-family:'IBM Plex Mono',monospace;color:${(c.lucro||0)>=0?'var(--green)':'var(--red)'}">${(c.lucro||0)>=0?'+':''}R$${(c.lucro||0).toFixed(0)}</td>
+            <td style="font-family:'IBM Plex Mono',monospace;font-size:.7rem">${c.vencimento?new Date(c.vencimento).toLocaleDateString('pt-BR'):'—'}</td>
+            <td style="font-family:'IBM Plex Mono',monospace;font-size:.7rem;color:var(--muted)">${c.cadastro?new Date(c.cadastro).toLocaleDateString('pt-BR'):'—'}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table></div>`}
+    </div>
+  `;
+}
+
+function calcMRR(clients) {
+  return clients.reduce((sum, c) => {
+    if (c.plano.includes('Telegram')) return sum + 97;
+    if (c.plano.includes('Mensal')) return sum + 397;
+    if (c.plano.includes('6 Meses')) return sum + Math.round(1097/6);
+    if (c.plano.includes('Anual')) return sum + Math.round(1597/12);
+    return sum;
+  }, 0);
+}
+
+async function openClientModal(id) {
+  const rows = await sb.get('clientes', { id });
+  if (!rows.length) return;
+  const c = rows[0];
+
+  document.getElementById('modal-title').textContent = (c.nome||c.email).toUpperCase();
+  document.getElementById('modal-body').innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.8rem;margin-bottom:1.2rem">
+      <div class="field"><label>Status</label>
+        <select id="m-status">
+          <option ${c.status==='Pendente'?'selected':''}>Pendente</option>
+          <option ${c.status==='Ativo'?'selected':''}>Ativo</option>
+          <option ${c.status==='Inativo'?'selected':''}>Inativo</option>
+        </select>
+      </div>
+      <div class="field"><label>Bot</label>
+        <select id="m-bot">
+          <option value="true" ${c.bot_ativo?'selected':''}>✓ Ativo</option>
+          <option value="false" ${!c.bot_ativo?'selected':''}>✗ Inativo</option>
+        </select>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.8rem;margin-bottom:1.2rem">
+      <div class="field"><label>ROI (%)</label><input type="number" id="m-roi" value="${c.roi||0}" step="0.1"></div>
+      <div class="field"><label>Lucro (R$)</label><input type="number" id="m-lucro" value="${c.lucro||0}" step="0.01"></div>
+      <div class="field"><label>Operações</label><input type="number" id="m-ops" value="${c.ops||0}"></div>
+    </div>
+    <div class="field" style="margin-bottom:1.2rem">
+      <label>Vencimento do Plano</label>
+      <input type="date" id="m-venc" value="${c.vencimento?new Date(c.vencimento).toISOString().split('T')[0]:''}">
+    </div>
+    <div class="field" style="margin-bottom:1.5rem">
+      <label>Nota Interna (só você vê)</label>
+      <input type="text" id="m-nota" value="${c.nota||''}" placeholder="ex: configurado em 10/02">
+    </div>
+    <div style="background:rgba(255,194,51,.05);border:1px solid rgba(255,194,51,.15);border-radius:8px;padding:1rem;margin-bottom:1.2rem">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:.6rem;letter-spacing:2px;color:var(--yellow);margin-bottom:.6rem">🔑 CREDENCIAIS BETFAIR</div>
+      <div class="info-row"><span class="info-label">Login</span><span class="info-val">${c.bf_login||'—'}</span></div>
+      <div class="info-row"><span class="info-label">Senha</span>
+        <span class="info-val" id="bfPwdShow" style="font-family:'IBM Plex Mono',monospace;letter-spacing:2px">••••••••</span>
+        <button onclick="togglePwd('${c.bf_senha||''}')" style="background:none;border:1px solid var(--border);border-radius:4px;color:var(--muted);font-size:.6rem;padding:.2rem .5rem;cursor:pointer;margin-left:.5rem">VER</button>
+      </div>
+      <div class="info-row"><span class="info-label">WhatsApp</span><span class="info-val">${c.whats||'—'}</span></div>
+    </div>
+    <div style="border:1px solid var(--border);border-radius:8px;padding:1rem;margin-bottom:1.5rem">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:.6rem;letter-spacing:2px;color:var(--muted);margin-bottom:.8rem">+ ADICIONAR RESULTADO DO MÊS</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:.6rem">
+        <div class="field" style="margin-bottom:0"><label>Data</label><input type="date" id="h-data" value="${new Date().toISOString().split('T')[0]}"></div>
+        <div class="field" style="margin-bottom:0"><label>Banca</label><input type="number" id="h-banca" placeholder="5200"></div>
+        <div class="field" style="margin-bottom:0"><label>Lucro R$</label><input type="number" id="h-lucro" placeholder="200"></div>
+        <div class="field" style="margin-bottom:0"><label>ROI %</label><input type="number" id="h-roi" placeholder="4.0" step="0.1"></div>
+      </div>
+      <button class="btn btn-sm" style="margin-top:.8rem" onclick="addHistorico('${id}')">+ ADICIONAR</button>
+    </div>
+    <div style="display:flex;gap:.7rem;flex-wrap:wrap">
+      <button class="btn" style="flex:1" onclick="saveClientEdit('${id}')">💾 SALVAR ALTERAÇÕES</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteClient('${id}')">🗑 EXCLUIR</button>
+    </div>
+  `;
+  document.getElementById('modalCliente').classList.add('open');
+}
+
+async function addHistorico(clientId) {
+  const data  = document.getElementById('h-data').value;
+  const banca = parseFloat(document.getElementById('h-banca').value);
+  const lucro = parseFloat(document.getElementById('h-lucro').value);
+  const roi   = parseFloat(document.getElementById('h-roi').value);
+  if (!data||isNaN(banca)||isNaN(lucro)||isNaN(roi)) { showToast('Preencha todos os campos.', true); return; }
+
+  try {
+    await sb.insert('historico', {
+      cliente_id: clientId,
+      data: new Date(data).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}),
+      banca, lucro, roi
+    });
+    showToast('✓ Resultado adicionado!');
+    document.getElementById('h-banca').value='';
+    document.getElementById('h-lucro').value='';
+    document.getElementById('h-roi').value='';
+  } catch(e) { showToast('Erro ao salvar histórico.', true); }
+}
+
+async function saveClientEdit(id) {
+  const patch = {
+    status:    document.getElementById('m-status').value,
+    bot_ativo: document.getElementById('m-bot').value === 'true',
+    roi:       parseFloat(document.getElementById('m-roi').value)||0,
+    lucro:     parseFloat(document.getElementById('m-lucro').value)||0,
+    ops:       parseInt(document.getElementById('m-ops').value)||0,
+    nota:      document.getElementById('m-nota').value
+  };
+  const venc = document.getElementById('m-venc').value;
+  if (venc) patch.vencimento = new Date(venc).toISOString();
+
+  try {
+    await sb.update('clientes', id, patch);
+    closeModal();
+    showToast('✓ Cliente atualizado!');
+    renderAdminClientes();
+  } catch(e) { showToast('Erro ao salvar.', true); }
+}
+
+async function deleteClient(id) {
+  if (!confirm('Tem certeza que deseja excluir este cliente?')) return;
+  try {
+    await sb.delete('clientes', id);
+    closeModal();
+    showToast('Cliente removido.');
+    renderAdminClientes();
+  } catch(e) { showToast('Erro ao excluir.', true); }
+}
+
+function renderAdminNovo() {
+  document.getElementById('adminMain').innerHTML = `
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:2px">ADICIONAR CLIENTE</div>
+    <div class="panel" style="max-width:560px">
+      <div class="panel-title">Cadastro Manual</div>
+      <div class="field"><label>Nome Completo</label><input type="text" id="an-nome" placeholder="Nome do cliente"></div>
+      <div class="field-row">
+        <div class="field"><label>Email</label><input type="email" id="an-email" placeholder="email@exemplo.com"></div>
+        <div class="field"><label>Senha de Acesso</label><input type="text" id="an-senha" placeholder="senha123" value="intellect2026"></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>WhatsApp</label><input type="text" id="an-whats" placeholder="(00) 00000-0000"></div>
+        <div class="field"><label>Plano</label>
+          <select id="an-plano" onchange="toggleBetfairAdmin()">
+            <option value="Telegram - R$97/mês">Telegram · R$97/mês</option>
+            <option value="Mensal - R$397/mês">Mensal · R$397/mês</option>
+            <option value="6 Meses - R$1.097">6 Meses · R$1.097</option>
+            <option value="Anual - R$1.597">Anual · R$1.597</option>
+          </select>
+        </div>
+      </div>
+      <div id="betfair-fields" style="display:none">
+        <div class="field-row">
+          <div class="field"><label>Login Betfair</label><input type="text" id="an-bfl" placeholder="email@betfair.com"></div>
+          <div class="field"><label>Senha Betfair</label><input type="text" id="an-bfs" placeholder="senha betfair"></div>
+        </div>
+        <div class="field"><label>Banca Inicial (R$)</label><input type="number" id="an-banca" placeholder="5000"></div>
+      </div>
+      <div class="err" id="an-err"></div>
+      <button class="btn" onclick="adminAddClient()">+ ADICIONAR CLIENTE</button>
+    </div>
+  `;
+  toggleBetfairAdmin();
+}
+
+function toggleBetfairAdmin() {
+  const plano = document.getElementById('an-plano').value;
+  const bf = document.getElementById('betfair-fields');
+  if (bf) bf.style.display = plano.includes('Telegram') ? 'none' : 'block';
+}
+
+async function adminAddClient() {
+  const nome   = document.getElementById('an-nome').value.trim();
+  const email  = document.getElementById('an-email').value.trim().toLowerCase();
+  const senha  = document.getElementById('an-senha').value;
+  const whats  = document.getElementById('an-whats').value.trim();
+  const plano  = document.getElementById('an-plano').value;
+  const isTelegram = plano.includes('Telegram');
+  const bfLogin= isTelegram ? '' : document.getElementById('an-bfl').value.trim();
+  const bfSenha= isTelegram ? '' : document.getElementById('an-bfs').value;
+  const banca  = isTelegram ? 0 : parseFloat(document.getElementById('an-banca').value);
+  const errEl  = document.getElementById('an-err');
+  errEl.classList.remove('show');
+
+  if (!nome||!email||!senha||!whats||!plano||(!isTelegram&&(!bfLogin||!bfSenha||isNaN(banca)))) {
+    errEl.textContent='Preencha todos os campos.'; errEl.classList.add('show'); return;
+  }
+
+  try {
+    await sb.insert('clientes', {
+      nome, email, senha, whats, plano, banca,
+      bf_login: bfLogin, bf_senha: bfSenha,
+      status:'Ativo', bot_ativo:true, roi:0, lucro:0, ops:0,
+      vencimento: calcVencimento(plano)
+    });
+    showToast('✓ Cliente adicionado!');
+    adminTab('clientes', document.querySelector('#appAdmin .nav-item'));
+  } catch(e) {
+    if (e.message.includes('duplicate')||e.message.includes('unique')) errEl.textContent='Email já cadastrado.';
+    else errEl.textContent='Erro ao salvar. Verifique conexão.';
+    errEl.classList.add('show');
+  }
+}
+
+async function renderAdminEstrategias() {
+  // Buscar todos contratos
+  let contratos = [];
+  try { contratos = await sb.get('estrategias_clientes'); } catch {}
+  let clientes = [];
+  try { clientes = await sb.get('clientes'); } catch {}
+  let ops = [];
+  try { ops = await sb.get('estrategias_ops'); } catch {}
+
+  document.getElementById('adminMain').innerHTML = `
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:2px">ESTRATÉGIAS</div>
+
+    <!-- CONTRATOS PENDENTES -->
+    <div class="panel">
+      <div class="panel-title" style="color:var(--yellow)">⏳ Aguardando Confirmação de Pagamento</div>
+      ${contratos.filter(c=>!c.pagamento_confirmado&&!c.ativo).length===0
+        ? '<div class="empty" style="padding:1rem">Nenhum pagamento pendente.</div>'
+        : contratos.filter(c=>!c.pagamento_confirmado&&!c.ativo).map(c=>{
+          const cl=clientes.find(x=>x.id===c.cliente_id);
+          const e=ESTRATEGIAS.find(x=>x.id===c.estrategia_id);
+          return '<div class="info-row"><span class="info-label">' + (cl?.nome||cl?.email||'?') + ' · ' + (e?.nome||'?') + '</span>'
+            + '<div style="display:flex;gap:.5rem">'
+            + '<button class="btn btn-sm" onclick="confirmarPagamentoAdmin(' + c.id + ')">✓ CONFIRMAR PAGTO</button>'
+            + '<button class="btn btn-sm" onclick="ativarBotAdmin(' + c.id + ')" style="background:linear-gradient(135deg,var(--green2),var(--green));color:#060910">⚡ ATIVAR BOT</button>'
+            + '</div></div>';
+        }).join('')}
+    </div>
+
+    <!-- BOTS ATIVOS -->
+    <div class="panel">
+      <div class="panel-title">🤖 Bots Ativos</div>
+      ${contratos.filter(c=>c.ativo).length===0
+        ? '<div class="empty" style="padding:1rem">Nenhum bot ativo.</div>'
+        : '<div class="tbl-wrap"><table><thead><tr><th>Cliente</th><th>Estratégia</th><th>Lucro Mês</th><th>10%</th><th>Pgto Mensal</th><th>Ações</th></tr></thead><tbody>'
+          + contratos.filter(c=>c.ativo).map(c=>{
+            const cl=clientes.find(x=>x.id===c.cliente_id);
+            const e=ESTRATEGIAS.find(x=>x.id===c.estrategia_id);
+            const dez=((c.lucro_mes||0)*0.1).toFixed(2);
+            return '<tr>'
+              + '<td>' + (cl?.nome||cl?.email||'?') + '</td>'
+              + '<td style="font-family:IBM Plex Mono,monospace">' + (e?.nome||'?') + '</td>'
+              + '<td><input type="number" value="' + (c.lucro_mes||0) + '" step="0.01" style="width:90px;background:var(--s2);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:.2rem .4rem;font-family:IBM Plex Mono,monospace;font-size:.7rem" onchange="atualizarLucroMes(' + c.id + ',this.value)"></td>'
+              + '<td style="font-family:IBM Plex Mono,monospace;color:var(--green)">R$' + dez + '</td>'
+              + '<td><span class="badge ' + (c.mensal_pago?'active':'inactive') + '-badge">' + (c.mensal_pago?'✓ PAGO':'PENDENTE') + '</span></td>'
+              + '<td style="display:flex;gap:.3rem;flex-wrap:wrap">'
+              + (!c.mensal_pago && (c.lucro_mes||0)>0 ? '<button class="btn btn-sm" onclick="confirmarMensalAdmin(' + c.id + ')">✓ PAGO</button>' : '')
+              + '<button class="btn btn-sm btn-danger" onclick="desativarBotAdmin(' + c.id + ')">⛔ DESATIVAR</button>'
+              + '</td></tr>';
+          }).join('')
+          + '</tbody></table></div>'}
+    </div>
+
+    <!-- LANÇAR OPERAÇÕES -->
+    <div class="panel" style="max-width:540px">
+      <div class="panel-title">📊 Lançar Operação (Taxa de Acerto)</div>
+      <div class="field-row">
+        <div class="field"><label>Estratégia</label>
+          <select id="op-est">
+            ${ESTRATEGIAS.map(e=>'<option value="' + e.id + '">' + e.nome + ' · ' + e.mercado + '</option>').join('')}
+          </select>
+        </div>
+        <div class="field"><label>Resultado</label>
+          <select id="op-res">
+            <option value="green">✅ Green (Ganhou)</option>
+            <option value="red">❌ Red (Perdeu)</option>
+          </select>
+        </div>
+      </div>
+      <div class="field"><label>Data</label><input type="date" id="op-data" value="${new Date().toISOString().split('T')[0]}"></div>
+      <button class="btn" onclick="lancarOpEstrategia()">+ LANÇAR OPERAÇÃO</button>
+    </div>
+
+    <!-- HISTÓRICO DE OPS -->
+    ${ops.length>0 ? '<div class="panel"><div class="panel-title">Histórico de Operações</div><div class="tbl-wrap"><table><thead><tr><th>Estratégia</th><th>Data</th><th>Resultado</th></tr></thead><tbody>'
+      + ops.slice(-20).reverse().map(o=>{
+        const e=ESTRATEGIAS.find(x=>x.id===o.estrategia_id);
+        return '<tr><td>' + (e?.nome||'?') + '</td><td style="font-family:IBM Plex Mono,monospace">' + o.data + '</td><td><span class="badge ' + (o.resultado==='green'?'active':'inactive') + '-badge">' + (o.resultado==='green'?'✅ Green':'❌ Red') + '</span></td></tr>';
+      }).join('')
+      + '</tbody></table></div></div>' : ''}
+  `;
+}
+
+async function confirmarPagamentoAdmin(contratoId) {
+  try {
+    await sb.update('estrategias_clientes', contratoId, { pagamento_confirmado: true });
+    showToast('✓ Pagamento confirmado!');
+    renderAdminEstrategias();
+  } catch { showToast('Erro.', true); }
+}
+
+async function ativarBotAdmin(contratoId) {
+  try {
+    await sb.update('estrategias_clientes', contratoId, { pagamento_confirmado: true, ativo: true, mensal_pago: false, lucro_mes: 0 });
+    showToast('⚡ Bot ativado!');
+    renderAdminEstrategias();
+  } catch { showToast('Erro.', true); }
+}
+
+async function desativarBotAdmin(contratoId) {
+  if (!confirm('Desativar este bot?')) return;
+  try {
+    await sb.update('estrategias_clientes', contratoId, { ativo: false });
+    showToast('Bot desativado.');
+    renderAdminEstrategias();
+  } catch { showToast('Erro.', true); }
+}
+
+async function atualizarLucroMes(contratoId, valor) {
+  try {
+    await sb.update('estrategias_clientes', contratoId, { lucro_mes: parseFloat(valor)||0 });
+    showToast('✓ Lucro atualizado!');
+  } catch { showToast('Erro.', true); }
+}
+
+async function confirmarMensalAdmin(contratoId) {
+  try {
+    await sb.update('estrategias_clientes', contratoId, { mensal_pago: true, lucro_mes: 0 });
+    showToast('✓ Mensalidade confirmada! Lucro zerado para novo ciclo.');
+    renderAdminEstrategias();
+  } catch { showToast('Erro.', true); }
+}
+
+async function lancarOpEstrategia() {
+  const estrategiaId = parseInt(document.getElementById('op-est').value);
+  const resultado    = document.getElementById('op-res').value;
+  const data         = document.getElementById('op-data').value;
+  if (!data) { showToast('Selecione a data.', true); return; }
+  try {
+    await sb.insert('estrategias_ops', {
+      estrategia_id: estrategiaId,
+      resultado,
+      data: new Date(data).toLocaleDateString('pt-BR', {day:'2-digit',month:'2-digit'})
+    });
+    showToast('✓ Operação lançada!');
+    renderAdminEstrategias();
+  } catch { showToast('Erro ao lançar.', true); }
+}
+
+function renderAdminConfig() {
+  document.getElementById('adminMain').innerHTML = `
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:2px">CONFIGURAÇÕES</div>
+    <div class="panel" style="max-width:480px">
+      <div class="panel-title">Sistema</div>
+      <div class="info-row"><span class="info-label">Versão</span><span class="info-val">Intellect App v1.0</span></div>
+      <div class="info-row"><span class="info-label">WhatsApp Admin</span><span class="info-val">(97) 99163-7163</span></div>
+      <div class="info-row"><span class="info-label">Painel Betfair</span>
+        <a href="https://intellectcopytrading.github.io/INTELECT/app.html" target="_blank" style="color:var(--green);font-family:'IBM Plex Mono',monospace;font-size:.72rem;text-decoration:none">Abrir →</a>
+      </div>
+      <div style="margin-top:1.2rem">
+        <button class="btn btn-ghost btn-sm" onclick="exportData()">📥 EXPORTAR DADOS (JSON)</button>
+      </div>
+    </div>
+    <div class="panel" style="max-width:480px">
+      <div class="panel-title" style="color:var(--red)">⚠ ZONA DE PERIGO</div>
+      <p style="font-size:.82rem;color:var(--muted2);margin-bottom:1rem;line-height:1.6">Limpar todos os dados remove clientes permanentemente.</p>
+      <button class="btn btn-danger btn-sm" onclick="clearAllData()">🗑 LIMPAR TODOS OS DADOS</button>
+    </div>
+  `;
+}
+
+async function exportData() {
+  const clients = await getClients();
+  const blob = new Blob([JSON.stringify(clients, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `intellect_clientes_${new Date().toISOString().split('T')[0]}.json`;
+  a.click();
+}
+
+async function clearAllData() {
+  if (!confirm('ATENÇÃO: Isso apagará TODOS os clientes do Supabase. Confirma?')) return;
+  const clients = await getClients();
+  for (const c of clients) { try { await sb.delete('clientes', c.id); } catch {} }
+  showToast('Dados limpos.');
+  renderAdminClientes();
+}
+
+function closeModal() {
+  document.getElementById('modalCliente').classList.remove('open');
+}
+document.getElementById('modalCliente').addEventListener('click', e => {
+  if (e.target === document.getElementById('modalCliente')) closeModal();
+});
+
+// ═══════════════════════════════════════════════════════
+// TOAST
+// ═══════════════════════════════════════════════════════
+let toastTimer = null;
+function showToast(msg, isErr = false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast' + (isErr ? ' err-toast' : '');
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ═══════════════════════════════════════════════════════
+// INIT: check session
+// ═══════════════════════════════════════════════════════
+async function init() {
+  const session = getSession();
+  if (!session) { showLogin(); return; }
+  if (session.type === 'admin') { loadAdminPanel(); return; }
+  if (session.type === 'client') {
+    try {
+      const rows = await sb.get('clientes', { id: session.id });
+      if (rows.length) {
+        const hist = await sb.get('historico', { cliente_id: rows[0].id });
+        const c = mapClient(rows[0]);
+        c.historico = hist.map(h => ({ data:h.data, banca:h.banca, lucro:h.lucro, roi:h.roi }));
+        loadClientDashboard(c);
+        return;
+      }
+    } catch {}
+  }
+  showLogin();
+}
+init();
+</script>
+</body>
+</html>
