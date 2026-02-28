@@ -470,6 +470,8 @@ async function doLogin() {
 
     saveSession({ type:'client', id: client.id, email });
     loadClientDashboard(c);
+    conectarRealtime(client.id); // 🔴 LIVE
+    pedirPermissaoNotificacao();
   } catch(e) {
     errEl.textContent='Erro de conexão. Tente novamente.'; errEl.classList.add('show');
   }
@@ -485,6 +487,7 @@ async function doAdminLogin() {
 }
 
 async function doLogout() {
+  if (realtimeChannel) { realtimeChannel.close(); realtimeChannel = null; }
   clearSession();
   showLogin();
   document.getElementById('login-email').value='';
@@ -1322,6 +1325,124 @@ function showToast(msg, isErr = false) {
 }
 
 // ═══════════════════════════════════════════════════════
+// SUPABASE REALTIME — atualização em tempo real
+// ═══════════════════════════════════════════════════════
+let realtimeChannel = null;
+
+function conectarRealtime(clientId) {
+  // Desconecta canal anterior se existir
+  if (realtimeChannel) {
+    realtimeChannel.close();
+    realtimeChannel = null;
+  }
+
+  // Supabase Realtime via WebSocket
+  const wsUrl = `wss://refmtoahyxldnyejwkwt.supabase.co/realtime/v1/websocket?apikey=${SUPABASE_KEY}&vsn=1.0.0`;
+  const ws = new WebSocket(wsUrl);
+  realtimeChannel = ws;
+
+  ws.onopen = () => {
+    // Entrar no canal de realtime
+    ws.send(JSON.stringify({
+      topic: 'realtime:public:clientes',
+      event: 'phx_join',
+      payload: { config: { broadcast: { self: false }, presence: { key: '' }, postgres_changes: [{ event: 'UPDATE', schema: 'public', table: 'clientes', filter: `id=eq.${clientId}` }] } },
+      ref: '1'
+    }));
+  };
+
+  ws.onmessage = async (event) => {
+    try {
+      const msg = JSON.parse(event.data);
+
+      // Heartbeat — manter conexão viva
+      if (msg.event === 'heartbeat' || (msg.topic === 'phoenix' && msg.event === 'phx_reply')) {
+        ws.send(JSON.stringify({ topic: 'phoenix', event: 'heartbeat', payload: {}, ref: Date.now().toString() }));
+        return;
+      }
+
+      // Mudança detectada no registro do cliente
+      if (msg.event === 'postgres_changes' && msg.payload?.data?.record) {
+        const novo = msg.payload.data.record;
+        const anterior = currentClient;
+
+        // Atualiza dados locais
+        const hist = await sb.get('historico', { cliente_id: clientId });
+        const c = mapClient(novo);
+        c.historico = hist.map(h => ({ data: h.data, banca: h.banca, lucro: h.lucro, roi: h.roi }));
+        currentClient = c;
+        document.getElementById('topbar-name').textContent = c.nome?.split(' ')[0] || '—';
+
+        // Notificações contextuais
+        if (!anterior.botAtivo && c.botAtivo) {
+          mostrarNotificacao('🤖 Bot Ativado!', 'Seu bot foi ativado com sucesso. Operações iniciando!');
+          showToast('🤖 Bot ativado! Bem-vindo ao CopyTrading!');
+        } else if (anterior.roi !== c.roi || anterior.lucro !== c.lucro) {
+          showToast(`📈 Resultados atualizados! ROI: ${c.roi >= 0 ? '+' : ''}${c.roi.toFixed(1)}%`);
+        } else if (anterior.status !== c.status) {
+          showToast(`ℹ️ Status atualizado: ${c.status}`);
+        } else {
+          showToast('🔄 Seus dados foram atualizados!');
+        }
+
+        // Re-renderiza a tela atual
+        const tabAtiva = document.querySelector('#appClient .nav-item.active');
+        if (tabAtiva) {
+          const texto = tabAtiva.textContent.trim().toLowerCase();
+          if (texto.includes('dashboard')) renderClientDashboard();
+          else if (texto.includes('estratég')) renderClientEstrategias();
+          else if (texto.includes('operaç')) renderClientOps();
+          else if (texto.includes('conta')) renderClientConta();
+        }
+      }
+    } catch (e) {
+      // Silencioso — erros de parse são normais
+    }
+  };
+
+  ws.onerror = () => {};
+
+  ws.onclose = () => {
+    // Reconecta após 5s se ainda estiver logado como cliente
+    const session = getSession();
+    if (session?.type === 'client') {
+      setTimeout(() => conectarRealtime(clientId), 5000);
+    }
+  };
+
+  // Heartbeat a cada 25s para manter conexão viva
+  const heartbeatInterval = setInterval(() => {
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ topic: 'phoenix', event: 'heartbeat', payload: {}, ref: Date.now().toString() }));
+    } else {
+      clearInterval(heartbeatInterval);
+    }
+  }, 25000);
+}
+
+// Notificação nativa do navegador
+function mostrarNotificacao(titulo, corpo) {
+  if (!('Notification' in window)) return;
+  if (Notification.permission === 'granted') {
+    new Notification(titulo, { body: corpo, icon: 'https://intellectcopytrading.github.io/INTELLECT/favicon.ico', badge: 'https://intellectcopytrading.github.io/INTELLECT/favicon.ico' });
+  } else if (Notification.permission !== 'denied') {
+    Notification.requestPermission().then(perm => {
+      if (perm === 'granted') new Notification(titulo, { body: corpo });
+    });
+  }
+}
+
+// Pedir permissão de notificação ao carregar dashboard
+function pedirPermissaoNotificacao() {
+  if (!('Notification' in window)) return;
+  if (Notification.permission === 'default') {
+    setTimeout(() => {
+      Notification.requestPermission();
+    }, 3000); // Aguarda 3s para não ser intrusivo
+  }
+}
+
+// ═══════════════════════════════════════════════════════
 // INIT: check session
 // ═══════════════════════════════════════════════════════
 async function init() {
@@ -1336,6 +1457,8 @@ async function init() {
         const c = mapClient(rows[0]);
         c.historico = hist.map(h => ({ data:h.data, banca:h.banca, lucro:h.lucro, roi:h.roi }));
         loadClientDashboard(c);
+        conectarRealtime(rows[0].id); // 🔴 LIVE
+        pedirPermissaoNotificacao();
         return;
       }
     } catch {}
