@@ -159,10 +159,19 @@ tbody td{padding:.6rem .8rem;white-space:nowrap}
 /* SECURITY NOTICE */
 .sec-notice{background:rgba(255,194,51,.05);border:1px solid rgba(255,194,51,.15);border-radius:8px;padding:.7rem 1rem;font-family:'IBM Plex Mono',monospace;font-size:.62rem;color:#ffc233;margin-bottom:1.2rem;display:flex;gap:.5rem;align-items:flex-start;line-height:1.5}
 
+/* MOBILE NAV */
+.mobile-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--s1);border-top:1px solid var(--border);z-index:50;padding:.5rem 0}
+.mobile-nav-items{display:flex;justify-content:space-around;align-items:center}
+.mobile-nav-item{display:flex;flex-direction:column;align-items:center;gap:.15rem;padding:.4rem .6rem;border-radius:8px;cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:.5rem;color:var(--muted);transition:all .2s;border:none;background:none;min-width:52px}
+.mobile-nav-item.active{color:var(--green)}
+.mobile-nav-item .mn-icon{font-size:1.2rem}
+
 /* RESPONSIVE */
 @media(max-width:700px){
-  .app-layout.active{grid-template-columns:1fr;grid-template-rows:56px auto 1fr}
+  .app-layout.active{grid-template-columns:1fr;grid-template-rows:56px 1fr}
   .sidebar{display:none}
+  .mobile-nav{display:block}
+  .main{padding-bottom:5rem}
   .panels-row{grid-template-columns:1fr}
   .field-row{grid-template-columns:1fr}
 }
@@ -264,7 +273,16 @@ tbody td{padding:.6rem .8rem;white-space:nowrap}
     <div class="nav-item" onclick="openWpp()"><span class="nav-icon">💬</span>WhatsApp</div>
   </div>
   <div class="main" id="clientMain"></div>
-</div>
+  <!-- MOBILE BOTTOM NAV -->
+  <nav class="mobile-nav" id="mobileNav">
+    <div class="mobile-nav-items">
+      <button class="mobile-nav-item active" onclick="clientTabMobile('dashboard',this)"><span class="mn-icon">📊</span>Dashboard</button>
+      <button class="mobile-nav-item" onclick="clientTabMobile('estrategias',this)"><span class="mn-icon">🤖</span>Estratégias</button>
+      <button class="mobile-nav-item" onclick="clientTabMobile('operacoes',this)"><span class="mn-icon">📋</span>Operações</button>
+      <button class="mobile-nav-item" onclick="clientTabMobile('conta',this)"><span class="mn-icon">👤</span>Conta</button>
+      <button class="mobile-nav-item" onclick="openWpp()"><span class="mn-icon">💬</span>Suporte</button>
+    </div>
+  </nav>
 
 <!-- ═══════════════════════════════════════════
      APP: PAINEL ADMIN
@@ -503,6 +521,20 @@ function loadClientDashboard(client) {
   document.getElementById('topbar-name').textContent = client.nome.split(' ')[0];
   show('appClient');
   renderClientDashboard();
+}
+
+function clientTabMobile(tab, el) {
+  document.querySelectorAll('#mobileNav .mobile-nav-item').forEach(n => n.classList.remove('active'));
+  el.classList.add('active');
+  // Sync sidebar
+  document.querySelectorAll('#appClient .nav-item').forEach(n => {
+    n.classList.remove('active');
+    if (n.textContent.toLowerCase().includes(tab === 'dashboard' ? 'dashboard' : tab === 'estrategias' ? 'estratég' : tab === 'operacoes' ? 'operaç' : 'conta')) n.classList.add('active');
+  });
+  if (tab === 'dashboard') renderClientDashboard();
+  else if (tab === 'estrategias') renderClientEstrategias();
+  else if (tab === 'operacoes') renderClientOps();
+  else if (tab === 'conta') renderClientConta();
 }
 
 function clientTab(tab, el) {
