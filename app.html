@@ -267,6 +267,7 @@ tbody td{padding:.6rem .8rem;white-space:nowrap}
     <div class="nav-item active" onclick="clientTab('dashboard',this)"><span class="nav-icon">📊</span>Dashboard</div>
     <div class="nav-item" onclick="clientTab('estrategias',this)"><span class="nav-icon">🤖</span>Estratégias</div>
     <div class="nav-item" onclick="clientTab('operacoes',this)"><span class="nav-icon">📋</span>Operações</div>
+    <div class="nav-item" onclick="clientTab('planos',this)"><span class="nav-icon">💳</span>Planos</div>
     <div class="nav-item" onclick="clientTab('conta',this)"><span class="nav-icon">👤</span>Minha Conta</div>
     <div class="nav-divider"></div>
     <div class="nav-label">Suporte</div>
@@ -280,6 +281,7 @@ tbody td{padding:.6rem .8rem;white-space:nowrap}
       <button class="mobile-nav-item" onclick="clientTabMobile('estrategias',this)"><span class="mn-icon">🤖</span>Estratégias</button>
       <button class="mobile-nav-item" onclick="clientTabMobile('operacoes',this)"><span class="mn-icon">📋</span>Operações</button>
       <button class="mobile-nav-item" onclick="clientTabMobile('conta',this)"><span class="mn-icon">👤</span>Conta</button>
+      <button class="mobile-nav-item" onclick="clientTabMobile('planos',this)"><span class="mn-icon">💳</span>Planos</button>
       <button class="mobile-nav-item" onclick="openWpp()"><span class="mn-icon">💬</span>Suporte</button>
     </div>
   </nav>
@@ -307,6 +309,16 @@ tbody td{padding:.6rem .8rem;white-space:nowrap}
     <div class="nav-item" onclick="adminTab('config',this)"><span class="nav-icon">⚙️</span>Configurações</div>
   </div>
   <div class="main" id="adminMain"></div>
+</div>
+
+
+<!-- MODAL PAGAMENTO PLANO -->
+<div class="modal-overlay" id="modalPagamentoPlano">
+  <div class="modal" style="position:relative;max-width:440px">
+    <button class="modal-close" onclick="fecharModalPlano()">✕</button>
+    <div class="modal-title" id="modal-plano-title">ASSINAR PLANO</div>
+    <div id="modal-plano-body"></div>
+  </div>
 </div>
 
 <!-- MODAL EDITAR CLIENTE -->
@@ -553,12 +565,13 @@ function clientTabMobile(tab, el) {
   // Sync sidebar
   document.querySelectorAll('#appClient .nav-item').forEach(n => {
     n.classList.remove('active');
-    if (n.textContent.toLowerCase().includes(tab === 'dashboard' ? 'dashboard' : tab === 'estrategias' ? 'estratég' : tab === 'operacoes' ? 'operaç' : 'conta')) n.classList.add('active');
+    if (n.textContent.toLowerCase().includes(tab === 'dashboard' ? 'dashboard' : tab === 'estrategias' ? 'estratég' : tab === 'operacoes' ? 'operaç' : tab === 'planos' ? 'planos' : 'conta')) n.classList.add('active');
   });
   if (tab === 'dashboard') renderClientDashboard();
   else if (tab === 'estrategias') renderClientEstrategias();
   else if (tab === 'operacoes') renderClientOps();
   else if (tab === 'conta') renderClientConta();
+  else if (tab === 'planos') renderClientPlanos();
 }
 
 function clientTab(tab, el) {
@@ -568,6 +581,7 @@ function clientTab(tab, el) {
   else if (tab === 'estrategias') renderClientEstrategias();
   else if (tab === 'operacoes')   renderClientOps();
   else if (tab === 'conta')   renderClientConta();
+  else if (tab === 'planos')  renderClientPlanos();
 }
 
 function renderClientDashboard() {
@@ -819,6 +833,90 @@ const ESTRATEGIAS = [
 const PIX_KEY   = '07bc03ad-72bf-41f1-bf4f-585bcbd2324e';
 const WPP_ADMIN = '5597991637163';
 const VALOR_BOT = 117;
+
+function renderClientPlanos() {
+  const c = currentClient;
+  const planoAtual = c.plano || '';
+  const isTelegram = planoAtual.includes('Telegram');
+  const isBot = planoAtual.includes('Bot');
+  const isAnual = planoAtual.includes('Anual');
+
+  function badgeAtual(cond) {
+    return cond ? '<div style="text-align:center;margin-bottom:.8rem"><span style="background:var(--green);color:#060910;font-family:IBM Plex Mono,monospace;font-size:.55rem;font-weight:700;padding:.2rem .8rem;border-radius:20px;letter-spacing:1px">PLANO ATUAL</span></div>' : '';
+  }
+
+  document.getElementById('clientMain').innerHTML = `
+    <div style="max-width:860px;margin:0 auto">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:.6rem;letter-spacing:3px;color:var(--muted);margin-bottom:.3rem">// ESCOLHA SEU PLANO</div>
+      <h2 style="font-family:'Bebas Neue',sans-serif;font-size:1.8rem;letter-spacing:2px;color:var(--text);margin-bottom:.4rem">PLANOS E PREÇOS</h2>
+      <p style="font-size:.8rem;color:var(--muted2);margin-bottom:2rem">Assine ou atualize seu plano. Taxa de performance cobrada <strong style="color:var(--green)">apenas quando houver lucro</strong>.</p>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1.2rem">
+
+        <div class="panel" style="${isTelegram ? 'border-color:var(--green);box-shadow:0 0 20px rgba(0,229,160,.15)' : ''}">
+          ${badgeAtual(isTelegram)}
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:.58rem;letter-spacing:3px;color:var(--muted);margin-bottom:.5rem">SINAIS</div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:2px;color:var(--text);margin-bottom:.3rem">PLANO TELEGRAM</div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:2.2rem;color:var(--green);line-height:1">R$ 97<span style="font-size:1rem;color:var(--muted2)">/mês</span></div>
+          <div style="font-size:.65rem;color:var(--muted);margin-bottom:1.2rem">sem taxa de performance</div>
+          <div style="display:flex;flex-direction:column;gap:.5rem;margin-bottom:1.5rem;font-size:.75rem;color:var(--muted2)">
+            <div>✓ Sinais diários no grupo privado</div>
+            <div>✓ Todas as estratégias validadas</div>
+            <div>✓ Execute manualmente ou automatize</div>
+            <div>✓ Ideal para conhecer o método</div>
+          </div>
+          ${isTelegram
+            ? '<div class="btn btn-ghost" style="text-align:center;cursor:default">PLANO ATIVO ✓</div>'
+            : '<button class="btn" onclick="abrirModalPlano('Plano Telegram', 97, 'Acesso ao grupo privado com sinais diários de todas as estratégias validadas.<br>Sem taxa de performance — pague apenas a mensalidade.')">ASSINAR AGORA →</button>'
+          }
+        </div>
+
+        <div class="panel" style="border-color:var(--green2);${isBot ? 'box-shadow:0 0 20px rgba(0,229,160,.15)' : ''}">
+          ${badgeAtual(isBot)}
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:.58rem;letter-spacing:3px;color:var(--muted);margin-bottom:.5rem">AUTOMAÇÃO</div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:2px;color:var(--text);margin-bottom:.3rem">BOT POR ESTRATÉGIA</div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:2.2rem;color:var(--green);line-height:1">R$ 117<span style="font-size:1rem;color:var(--muted2)">/estratégia</span></div>
+          <div style="font-size:.65rem;color:var(--muted);margin-bottom:1.2rem">+ 10% sobre o lucro mensal</div>
+          <div style="display:flex;flex-direction:column;gap:.5rem;margin-bottom:1.5rem;font-size:.75rem;color:var(--muted2)">
+            <div>✓ Escolha qual estratégia ativar</div>
+            <div>✓ Over Gols · Under Gols · Match Odds</div>
+            <div>✓ Controle total pela área do cliente</div>
+            <div>✓ Sem lucro = sem cobrança mensal</div>
+          </div>
+          ${isBot
+            ? '<div class="btn btn-ghost" style="text-align:center;cursor:default">PLANO ATIVO ✓</div>'
+            : '<button class="btn" onclick="abrirModalPlano('Bot por Estratégia', 117, 'Ativação de uma estratégia automatizada na sua conta Betfair.<br>+ 10% do lucro mensal — cobrado apenas se houver lucro.')">CONTRATAR →</button>'
+          }
+        </div>
+
+        <div class="panel" style="${isAnual ? 'border-color:var(--yellow);box-shadow:0 0 20px rgba(255,194,51,.15)' : ''}">
+          ${badgeAtual(isAnual)}
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:.58rem;letter-spacing:3px;color:var(--muted);margin-bottom:.5rem">COPYTRADING COMPLETO</div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:2px;color:var(--text);margin-bottom:.3rem">PLANO ANUAL</div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:2.2rem;color:var(--yellow);line-height:1">R$ 1.997<span style="font-size:1rem;color:var(--muted2)">/ano</span></div>
+          <div style="font-size:.65rem;color:var(--muted);margin-bottom:1.2rem">+ 15% sobre o lucro · R$166/mês</div>
+          <div style="display:flex;flex-direction:column;gap:.5rem;margin-bottom:1.5rem;font-size:.75rem;color:var(--muted2)">
+            <div>✓ Todas as estratégias ativas 24/7</div>
+            <div>✓ Setup completo incluso</div>
+            <div>✓ Relatórios semanais no WhatsApp</div>
+            <div>✓ Suporte especializado vitalício</div>
+            <div>✓ Acesso a novas estratégias validadas</div>
+          </div>
+          ${isAnual
+            ? '<div class="btn" style="text-align:center;cursor:default;background:linear-gradient(135deg,#b8860b,var(--yellow));color:#060910">PLANO ATIVO ✓</div>'
+            : '<button class="btn" style="background:linear-gradient(135deg,#b8860b,var(--yellow));color:#060910" onclick="abrirModalPlano('Plano Anual', 1997, 'Todas as estratégias ativas 24/7 com setup completo incluso.<br>+ 15% do lucro mensal — cobrado apenas se houver lucro.')">ASSINAR AGORA →</button>'
+          }
+        </div>
+
+      </div>
+
+      <div style="margin-top:1.5rem;background:rgba(0,229,160,.05);border:1px solid rgba(0,229,160,.1);border-radius:10px;padding:1rem 1.2rem;font-family:'IBM Plex Mono',monospace;font-size:.62rem;color:var(--muted);line-height:1.8">
+        💳 Pagamento via PIX · Ativação em até 24h úteis &nbsp;·&nbsp; ⚡ Sem lucro = sem cobrança &nbsp;·&nbsp; 📋 Dúvidas? <a href="https://wa.me/5597991637163" target="_blank" style="color:var(--green)">Fale no WhatsApp</a>
+      </div>
+    </div>
+  `;
+}
+
 
 async function renderClientEstrategias() {
   let contratadas = [];
@@ -1371,9 +1469,60 @@ document.getElementById('modalCliente').addEventListener('click', e => {
 });
 
 // ═══════════════════════════════════════════════════════
+
+function abrirModalPlano(nomePlano, valor, descricao) {
+  const pixKey = PIX_KEY;
+  const wppAdmin = WPP_ADMIN;
+  const clienteNome = currentClient.nome || currentClient.email;
+  const msg = encodeURIComponent('Ola Matheus! Sou ' + clienteNome + ' e acabei de pagar R$' + valor + ' para assinar o ' + nomePlano + '. Segue o comprovante PIX:');
+  document.getElementById('modal-plano-title').textContent = nomePlano.toUpperCase();
+  const body = document.getElementById('modal-plano-body');
+  body.innerHTML = '';
+  const desc = document.createElement('div');
+  desc.style.cssText = "font-family:'IBM Plex Mono',monospace;font-size:.72rem;color:var(--muted2);line-height:1.8;margin-bottom:1.2rem";
+  desc.innerHTML = descricao;
+  body.appendChild(desc);
+  const box = document.createElement('div');
+  box.style.cssText = 'background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:1.2rem;margin-bottom:1rem';
+  box.innerHTML = '<div style="font-family:IBM Plex Mono,monospace;font-size:.58rem;letter-spacing:2px;color:var(--muted);margin-bottom:.4rem">VALOR</div>'
+    + '<div style="font-family:Bebas Neue,sans-serif;font-size:2rem;color:var(--green);margin-bottom:1rem">R$ ' + valor + '</div>'
+    + '<div style="font-family:IBM Plex Mono,monospace;font-size:.58rem;letter-spacing:2px;color:var(--muted);margin-bottom:.4rem">CHAVE PIX</div>'
+    + '<div style="font-family:IBM Plex Mono,monospace;font-size:.72rem;color:var(--green);word-break:break-all;margin-bottom:.8rem;background:var(--s3);padding:.6rem;border-radius:6px">' + pixKey + '</div>'
+    + '<button class="btn btn-sm" onclick="copiarPixPlano()">📋 COPIAR CHAVE PIX</button>';
+  body.appendChild(box);
+  const info = document.createElement('div');
+  info.style.cssText = "font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--muted);margin-bottom:1rem;line-height:1.6";
+  info.textContent = '⚡ Após o pagamento, envie o comprovante pelo WhatsApp para ativação em até 24h úteis.';
+  body.appendChild(info);
+  const btnWpp = document.createElement('button');
+  btnWpp.className = 'btn';
+  btnWpp.textContent = '📲 ENVIAR COMPROVANTE NO WHATSAPP';
+  btnWpp.onclick = () => enviarComprovanteWppPlano(msg);
+  body.appendChild(btnWpp);
+  document.getElementById('modalPagamentoPlano').classList.add('open');
+}
+
+function fecharModalPlano() {
+  document.getElementById('modalPagamentoPlano').classList.remove('open');
+}
+
+function copiarPixPlano() {
+  navigator.clipboard.writeText(PIX_KEY).then(() => showToast('✓ Chave PIX copiada!'));
+}
+
+function enviarComprovanteWppPlano(msg) {
+  copiarPixPlano();
+  setTimeout(() => window.open('https://wa.me/' + WPP_ADMIN + '?text=' + msg, '_blank'), 800);
+}
+
 // TOAST
 // ═══════════════════════════════════════════════════════
 let toastTimer = null;
+function togglePwd(senha) {
+  if (!senha) { showToast('Senha não cadastrada.', true); return; }
+  showToast('🔑 Senha: ' + senha, false);
+}
+
 function showToast(msg, isErr = false) {
   const t = document.getElementById('toast');
   t.textContent = msg;
