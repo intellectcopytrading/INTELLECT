@@ -189,7 +189,14 @@ tbody td{padding:.6rem .8rem;white-space:nowrap}
 <div class="screen" id="screenRegister">
   <div class="card" style="max-width:380px">
     <div class="logo">INTELLECT<span>CT</span></div>
-    <div class="logo-sub">// CRIAR CONTA</div>
+    <div class="logo-sub" id="reg-plano-label">// CRIAR CONTA</div>
+    <script>
+      (function(){
+        const p = new URLSearchParams(window.location.search).get('plano');
+        const labels = { telegram: '// PLANO TELEGRAM · R$97/MÊS', bot: '// BOT POR ESTRATÉGIA · R$117', anual: '// PLANO ANUAL · R$1.997' };
+        if (p && labels[p]) document.currentScript.previousElementSibling.textContent = labels[p];
+      })();
+    </script>
 
     <div class="field">
       <label>Email</label>
@@ -432,10 +439,13 @@ async function doRegister() {
   const email = document.getElementById('reg-email').value.trim().toLowerCase();
   const senha = document.getElementById('reg-senha').value;
   const errEl = document.getElementById('reg-err');
+  const btn = document.querySelector('#screenRegister .btn');
   errEl.classList.remove('show');
 
   if (!email || !senha) { errEl.textContent='Preencha email e senha.'; errEl.classList.add('show'); return; }
   if (senha.length < 6)  { errEl.textContent='Senha mínima de 6 caracteres.'; errEl.classList.add('show'); return; }
+
+  btn.textContent = 'AGUARDE...'; btn.disabled = true;
 
   try {
     const [novo] = await sb.insert('clientes', {
@@ -445,15 +455,24 @@ async function doRegister() {
       vencimento: new Date(Date.now() + 30*24*60*60*1000).toISOString()
     });
     saveSession({ type:'client', id: novo.id, email });
-    showToast('✓ Conta criada! Complete seu cadastro abaixo.');
+    showToast('✓ Conta criada!');
     loadClientDashboard(mapClient(novo));
+    // Se veio de um plano, redireciona para aba Planos
+    const planoUrl = new URLSearchParams(window.location.search).get('plano');
+    if (planoUrl) {
+      setTimeout(() => {
+        const navPlanos = [...document.querySelectorAll('#appClient .nav-item')].find(el => el.textContent.includes('Planos'));
+        if (navPlanos) clientTab('planos', navPlanos);
+      }, 400);
+    }
   } catch(e) {
     if (e.message.includes('duplicate') || e.message.includes('unique')) {
-      errEl.textContent='Este email já está cadastrado.';
+      errEl.textContent='Este email já está cadastrado. Faça login.';
     } else {
       errEl.textContent='Erro ao criar conta. Verifique sua conexão.';
     }
     errEl.classList.add('show');
+    btn.textContent = 'CRIAR CONTA →'; btn.disabled = false;
   }
 }
 
@@ -521,6 +540,14 @@ async function doLogin() {
     loadClientDashboard(c);
     conectarRealtime(client.id); // 🔴 LIVE
     pedirPermissaoNotificacao();
+    // Se veio de um plano, redireciona para aba Planos
+    const planoUrl = new URLSearchParams(window.location.search).get('plano');
+    if (planoUrl) {
+      setTimeout(() => {
+        const navPlanos = [...document.querySelectorAll('#appClient .nav-item')].find(el => el.textContent.includes('Planos'));
+        if (navPlanos) clientTab('planos', navPlanos);
+      }, 400);
+    }
   } catch(e) {
     console.error('Erro login:', e);
     errEl.textContent='Erro de conexão. Verifique sua internet e tente novamente.';
