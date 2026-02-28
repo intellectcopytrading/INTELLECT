@@ -186,7 +186,7 @@ tbody td{padding:.6rem .8rem;white-space:nowrap}
 <!-- ═══════════════════════════════════════════
      SCREEN: CADASTRO
 ════════════════════════════════════════════ -->
-<div class="screen active" id="screenRegister">
+<div class="screen" id="screenRegister">
   <div class="card" style="max-width:380px">
     <div class="logo">INTELLECT<span>CT</span></div>
     <div class="logo-sub">// CRIAR CONTA</div>
@@ -472,12 +472,32 @@ async function doLogin() {
   const email = document.getElementById('login-email').value.trim().toLowerCase();
   const senha = document.getElementById('login-senha').value;
   const errEl = document.getElementById('login-err');
+  const btn   = document.querySelector('#screenLogin .btn');
   errEl.classList.remove('show');
+
+  if (!email || !senha) { errEl.textContent='Preencha email e senha.'; errEl.classList.add('show'); return; }
+
+  // Estado de carregamento
+  btn.textContent = 'AGUARDE...';
+  btn.disabled = true;
 
   try {
     const rows = await sb.get('clientes', { email });
+
+    if (!rows || rows.length === 0) {
+      errEl.textContent='Email não encontrado. Verifique ou crie uma conta.';
+      errEl.classList.add('show');
+      btn.textContent='ENTRAR →'; btn.disabled=false;
+      return;
+    }
+
     const client = rows.find(c => c.senha === senha);
-    if (!client) { errEl.textContent='Email ou senha incorretos.'; errEl.classList.add('show'); return; }
+    if (!client) {
+      errEl.textContent='Senha incorreta.';
+      errEl.classList.add('show');
+      btn.textContent='ENTRAR →'; btn.disabled=false;
+      return;
+    }
 
     // Buscar histórico
     const hist = await sb.get('historico', { cliente_id: client.id });
@@ -489,7 +509,10 @@ async function doLogin() {
     conectarRealtime(client.id); // 🔴 LIVE
     pedirPermissaoNotificacao();
   } catch(e) {
-    errEl.textContent='Erro de conexão. Tente novamente.'; errEl.classList.add('show');
+    console.error('Erro login:', e);
+    errEl.textContent='Erro de conexão. Verifique sua internet e tente novamente.';
+    errEl.classList.add('show');
+    btn.textContent='ENTRAR →'; btn.disabled=false;
   }
 }
 
@@ -724,14 +747,12 @@ function renderClientConta() {
       ${!isTelegram ? `<div id="p-banca-wrap"><div class="field"><label>Banca Inicial na Betfair (R$)</label><input type="number" id="p-banca" value="${c.banca||''}" placeholder="Ex: 5000"></div></div>` : '<div id="p-banca-wrap" style="display:none"><div class="field"><label>Banca Inicial na Betfair (R$)</label><input type="number" id="p-banca" value="" placeholder="Ex: 5000"></div></div>'}
     </div>
 
-    ${!isTelegram ? `
-    <div id="p-betfair-wrap" class="panel" style="max-width:540px">` : `
-    <div id="p-betfair-wrap" class="panel" style="max-width:540px;display:none">`}
+    <div id="p-betfair-wrap" class="panel" style="max-width:540px${isTelegram ? ';display:none' : ''}">
       <div class="panel-title">🔑 Acesso Betfair</div>
       <div class="sec-notice">🔒 Seus dados são criptografados e acessados apenas pela nossa equipe para configurar os bots.</div>
       <div class="field"><label>Login / Email Betfair</label><input type="email" id="p-bfl" value="${c.bfLogin||''}" placeholder="email@betfair.com"></div>
       <div class="field"><label>Senha Betfair</label><input type="password" id="p-bfs" value="${c.bfSenha||''}" placeholder="••••••••"></div>
-    </div>` : ''}
+    </div>
 
     <div class="panel" style="max-width:540px">
       <div class="panel-title">Segurança</div>
@@ -1483,24 +1504,33 @@ function pedirPermissaoNotificacao() {
 // INIT: check session
 // ═══════════════════════════════════════════════════════
 async function init() {
+  // Mostra login imediatamente — nunca fica tela preta
+  showLogin();
+
   const session = getSession();
-  if (!session) { showLogin(); return; }
+  if (!session) return;
+
   if (session.type === 'admin') { loadAdminPanel(); return; }
+
   if (session.type === 'client') {
     try {
-      const rows = await sb.get('clientes', { id: session.id });
-      if (rows.length) {
-        const hist = await sb.get('historico', { cliente_id: rows[0].id });
+      const withTimeout = (p) => Promise.race([p, new Promise((_,rej) => setTimeout(() => rej(new Error('timeout')), 8000))]);
+      const rows = await withTimeout(sb.get('clientes', { id: session.id }));
+      if (rows && rows.length) {
+        let hist = [];
+        try { hist = await withTimeout(sb.get('historico', { cliente_id: rows[0].id })); } catch {}
         const c = mapClient(rows[0]);
         c.historico = hist.map(h => ({ data:h.data, banca:h.banca, lucro:h.lucro, roi:h.roi }));
         loadClientDashboard(c);
-        conectarRealtime(rows[0].id); // 🔴 LIVE
+        conectarRealtime(rows[0].id);
         pedirPermissaoNotificacao();
         return;
       }
-    } catch {}
+    } catch(e) {
+      console.warn('Init erro:', e.message);
+      clearSession();
+    }
   }
-  showLogin();
 }
 init();
 </script>
