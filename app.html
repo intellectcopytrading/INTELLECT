@@ -190,15 +190,22 @@ tbody td{padding:.6rem .8rem;white-space:nowrap}
   <div class="card" style="max-width:380px">
     <div class="logo">INTELLECT<span>CT</span></div>
     <div class="logo-sub" id="reg-plano-label">// CRIAR CONTA</div>
+    <input type="password" style="display:none" tabindex="-1" aria-hidden="true">
     <div class="field">
       <label>Email</label>
-      <input type="email" id="reg-email" placeholder="seu@email.com">
+      <input type="email" id="reg-email" placeholder="seu@email.com" autocomplete="off">
     </div>
     <div class="field">
-      <label>Senha</label>
-      <input type="password" id="reg-senha" placeholder="mínimo 6 caracteres" onkeydown="if(event.key==='Enter')doRegister()">
+      <label>Crie sua senha</label>
+      <input type="password" id="reg-senha" placeholder="mínimo 6 caracteres"
+             autocomplete="new-password" oninput="checkSenhaMatch()" onkeydown="if(event.key==='Enter')doRegister()">
     </div>
-
+    <div class="field">
+      <label>Confirme sua senha</label>
+      <input type="password" id="reg-senha2" placeholder="repita a senha"
+             autocomplete="new-password" oninput="checkSenhaMatch()" onkeydown="if(event.key==='Enter')doRegister()">
+      <div id="senha-match-msg" style="font-family:'IBM Plex Mono',monospace;font-size:.62rem;margin-top:.3rem;display:none"></div>
+    </div>
     <div class="err" id="reg-err"></div>
     <button class="btn" onclick="doRegister()">CRIAR CONTA →</button>
     <div class="link">Já tem conta? <span onclick="showLogin()">Fazer login</span></div>
@@ -215,11 +222,11 @@ tbody td{padding:.6rem .8rem;white-space:nowrap}
 
     <div class="field">
       <label>Email</label>
-      <input type="email" id="login-email" placeholder="seu@email.com">
+      <input type="email" id="login-email" placeholder="seu@email.com" autocomplete="username">
     </div>
     <div class="field">
       <label>Senha</label>
-      <input type="password" id="login-senha" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()">
+      <input type="password" id="login-senha" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
     </div>
     <div class="err" id="login-err"></div>
     <button class="btn" onclick="doLogin()">ENTRAR →</button>
@@ -894,7 +901,7 @@ function renderClientPlanos() {
       })
     + card({
         ativo: isBot, border: 'var(--green2)', borderAtivo: 'var(--green2)', shadowAtivo: 'box-shadow:0 0 20px rgba(0,229,160,.15)',
-        tag: 'AUTOMAÇÃO', nome: 'BOT POR ESTRATÉGIA', preco: 'R$ 117', periodo: '/estratégia', cor: 'var(--green)', sub: '+ 10% sobre o lucro mensal',
+        tag: 'AUTOMA\u00c7\u00c3O', nome: 'BOT POR ESTRAT\u00c9GIA', preco: 'R$ 117', periodo: '/estrat\u00e9gia', cor: 'var(--green)', sub: '+ 10% sobre o lucro mensal',
         items: ['Escolha qual estratégia ativar','Over Gols · Under Gols · Match Odds','Controle total pela área do cliente','Sem lucro = sem cobrança mensal'],
         onclick: "abrirModalPlano('Bot por Estrategia', 117, 'Ativação de uma estratégia automatizada na sua conta Betfair.')",
         btnLabel: 'CONTRATAR →'
@@ -914,4 +921,439 @@ function renderClientPlanos() {
   document.getElementById('clientMain').innerHTML = html;
 }
 
+// ═══════════════════════════════════════════════════════
+// TOAST
+// ═══════════════════════════════════════════════════════
+function showToast(msg, isErr = false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast' + (isErr ? ' err-toast' : '');
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+// ═══════════════════════════════════════════════════════
+// TOGGLE CAMPOS BETFAIR NA ABA CONTA
+// ═══════════════════════════════════════════════════════
+function toggleBetfairCliente() {
+  const plano = document.getElementById('p-plano').value;
+  const isTelegram = plano.includes('Telegram');
+  const bancaWrap   = document.getElementById('p-banca-wrap');
+  const betfairWrap = document.getElementById('p-betfair-wrap');
+  if (bancaWrap)   bancaWrap.style.display   = isTelegram ? 'none' : '';
+  if (betfairWrap) betfairWrap.style.display = isTelegram ? 'none' : '';
+}
+
+// ═══════════════════════════════════════════════════════
+// CONFIRMAÇÃO DE SENHA NO CADASTRO
+// ═══════════════════════════════════════════════════════
+function checkSenhaMatch() {
+  const s1  = document.getElementById('reg-senha').value;
+  const s2  = document.getElementById('reg-senha2').value;
+  const msg = document.getElementById('senha-match-msg');
+  if (!s2) { msg.style.display = 'none'; return; }
+  if (s1 === s2) {
+    msg.style.display = 'block'; msg.style.color = 'var(--green)'; msg.textContent = '✓ Senhas conferem';
+  } else {
+    msg.style.display = 'block'; msg.style.color = 'var(--red)'; msg.textContent = '✗ Senhas não conferem';
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// REGISTER — versão corrigida com confirmação de senha
+// ═══════════════════════════════════════════════════════
+async function doRegister() {
+  const email  = document.getElementById('reg-email').value.trim().toLowerCase();
+  const senha  = document.getElementById('reg-senha').value;
+  const senha2 = document.getElementById('reg-senha2').value;
+  const errEl  = document.getElementById('reg-err');
+  const btn    = document.querySelector('#screenRegister .btn');
+  errEl.classList.remove('show');
+
+  if (!email || !senha)  { errEl.textContent='Preencha email e senha.'; errEl.classList.add('show'); return; }
+  if (senha.length < 6)  { errEl.textContent='Senha mínima de 6 caracteres.'; errEl.classList.add('show'); return; }
+  if (senha !== senha2)  { errEl.textContent='As senhas não conferem.'; errEl.classList.add('show'); return; }
+
+  btn.textContent = 'AGUARDE...'; btn.disabled = true;
+  try {
+    const [novo] = await sb.insert('clientes', {
+      email, senha, nome:'', whats:'', plano:'', banca:0,
+      bf_login:'', bf_senha:'', status:'Pendente', bot_ativo:false,
+      roi:0, lucro:0, ops:0,
+      vencimento: new Date(Date.now() + 30*24*60*60*1000).toISOString()
+    });
+    saveSession({ type:'client', id: novo.id, email });
+    document.getElementById('reg-senha').value  = '';
+    document.getElementById('reg-senha2').value = '';
+    document.getElementById('reg-email').value  = '';
+    showToast('✓ Conta criada! Complete seu cadastro.');
+    loadClientDashboard(mapClient(novo));
+    const planoUrl = new URLSearchParams(window.location.search).get('plano');
+    setTimeout(() => {
+      const aba = planoUrl ? 'planos' : 'conta';
+      const label = planoUrl ? 'Planos' : 'Conta';
+      const nav = [...document.querySelectorAll('#appClient .nav-item')].find(el => el.textContent.includes(label));
+      if (nav) clientTab(aba, nav);
+    }, 500);
+  } catch(e) {
+    errEl.textContent = (e.message.includes('duplicate') || e.message.includes('unique'))
+      ? 'Este email já está cadastrado. Faça login.'
+      : 'Erro ao criar conta. Verifique sua conexão.';
+    errEl.classList.add('show');
+    btn.textContent = 'CRIAR CONTA →'; btn.disabled = false;
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// ESTRATÉGIAS — aba do cliente
+// ═══════════════════════════════════════════════════════
+function renderClientEstrategias() {
+  const c = currentClient;
+  const temAcesso = c.plano && (c.plano.includes('Anual') || c.plano.includes('Bot'));
+  const cards = ESTRATEGIAS.map(e => `
+    <div class="panel" style="border-color:${temAcesso && c.botAtivo ? 'var(--green)' : 'var(--border)'}">
+      <div style="font-size:2rem;margin-bottom:.6rem">${e.icone}</div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:.58rem;letter-spacing:2px;color:var(--muted);margin-bottom:.3rem">${e.mercado}</div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:2px;margin-bottom:.5rem">${e.nome}</div>
+      <div style="font-size:.78rem;color:var(--muted2);margin-bottom:1rem;line-height:1.6">${e.desc}</div>
+      ${temAcesso
+        ? `<span class="badge ${c.botAtivo ? 'active-badge' : 'pending-badge'}"><span class="badge-dot ${c.botAtivo ? 'pulse' : ''}"></span>${c.botAtivo ? 'ATIVO' : 'AGUARDANDO CONFIG.'}</span>`
+        : `<button class="btn btn-sm" onclick="clientTab('planos', document.querySelectorAll('#appClient .nav-item')[3])">CONTRATAR →</button>`
+      }
+    </div>
+  `).join('');
+  document.getElementById('clientMain').innerHTML = `
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:2px">ESTRATÉGIAS</div>
+    <p style="font-size:.8rem;color:var(--muted2);margin-bottom:1rem">Bots automatizados operando 24/7 na sua conta Betfair.</p>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1rem">${cards}</div>
+    ${!temAcesso ? `<div style="background:rgba(255,194,51,.06);border:1px solid rgba(255,194,51,.15);border-radius:10px;padding:1rem 1.2rem;font-family:'IBM Plex Mono',monospace;font-size:.68rem;color:var(--yellow);margin-top:.5rem">
+      ⚡ Você precisa de um plano Bot ou Anual para ativar as estratégias. <span style="color:var(--green);cursor:pointer;text-decoration:underline" onclick="clientTab('planos', document.querySelectorAll('#appClient .nav-item')[3])">Ver planos →</span>
+    </div>` : ''}
+  `;
+}
+
+// ═══════════════════════════════════════════════════════
+// MODAL PAGAMENTO PLANO
+// ═══════════════════════════════════════════════════════
+function abrirModalPlano(nomePlano, valor, descricao) {
+  document.getElementById('modal-plano-title').textContent = 'ASSINAR — ' + nomePlano.toUpperCase();
+  document.getElementById('modal-plano-body').innerHTML = `
+    <div style="background:rgba(0,229,160,.06);border:1px solid rgba(0,229,160,.15);border-radius:10px;padding:1rem 1.2rem;margin-bottom:1.2rem">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:.62rem;color:var(--muted);margin-bottom:.3rem">PLANO SELECIONADO</div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;color:var(--green)">${nomePlano}</div>
+      <div style="font-size:.78rem;color:var(--muted2);margin-top:.3rem">${descricao}</div>
+    </div>
+    <div style="text-align:center;margin-bottom:1.2rem">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:.62rem;color:var(--muted);margin-bottom:.5rem">VALOR A PAGAR</div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:2.5rem;color:var(--green)">R$ ${valor.toLocaleString('pt-BR')}</div>
+      <div style="font-size:.7rem;color:var(--muted)">pagamento único via PIX</div>
+    </div>
+    <div style="background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:1.2rem;margin-bottom:1.2rem;text-align:center">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--muted);margin-bottom:.5rem">CHAVE PIX</div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:.75rem;color:var(--text);word-break:break-all;margin-bottom:.8rem">${PIX_KEY}</div>
+      <button class="btn btn-sm" onclick="copiarPix()">📋 COPIAR CHAVE PIX</button>
+    </div>
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--muted);line-height:2;margin-bottom:1.2rem">
+      ① Faça o PIX para a chave acima<br>
+      ② Envie o comprovante pelo WhatsApp<br>
+      ③ Ativação em até 24h úteis
+    </div>
+    <button class="btn" onclick="confirmarPagamentoWpp('${nomePlano}', ${valor})">
+      💬 ENVIAR COMPROVANTE NO WHATSAPP →
+    </button>
+  `;
+  document.getElementById('modalPagamentoPlano').classList.add('open');
+}
+
+function fecharModalPlano() {
+  document.getElementById('modalPagamentoPlano').classList.remove('open');
+}
+
+function copiarPix() {
+  navigator.clipboard.writeText(PIX_KEY)
+    .then(() => showToast('✓ Chave PIX copiada!'))
+    .catch(() => showToast('Copie: ' + PIX_KEY, true));
+}
+
+function confirmarPagamentoWpp(nomePlano, valor) {
+  const nome = currentClient.nome || currentClient.email;
+  const msg = encodeURIComponent(`Olá Matheus! Sou ${nome} e fiz o PIX de R$${valor} para o ${nomePlano}. Segue o comprovante:`);
+  window.open(`https://wa.me/${WPP_ADMIN}?text=${msg}`, '_blank');
+  fecharModalPlano();
+}
+
+// ═══════════════════════════════════════════════════════
+// MODAL CLIENTE ADMIN — fechar
+// ═══════════════════════════════════════════════════════
+function closeModal() {
+  document.getElementById('modalCliente').classList.remove('open');
+}
+
+// ═══════════════════════════════════════════════════════
+// REALTIME — polling a cada 60s
+// ═══════════════════════════════════════════════════════
+let realtimeChannel = null;
+function conectarRealtime(clientId) {
+  if (realtimeChannel) clearInterval(realtimeChannel);
+  realtimeChannel = setInterval(async () => {
+    try {
+      const rows = await sb.get('clientes', { id: clientId });
+      if (rows && rows[0]) {
+        const upd = mapClient(rows[0]);
+        upd.historico = currentClient.historico;
+        currentClient = upd;
+        if (upd.nome) document.getElementById('topbar-name').textContent = upd.nome.split(' ')[0];
+      }
+    } catch(e) { /* silencioso */ }
+  }, 60000);
+}
+
+// ═══════════════════════════════════════════════════════
+// NOTIFICAÇÕES
+// ═══════════════════════════════════════════════════════
+function pedirPermissaoNotificacao() {
+  if ('Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission();
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// ADMIN PANEL
+// ═══════════════════════════════════════════════════════
+async function loadAdminPanel() {
+  show('appAdmin');
+  adminTab('clientes', document.querySelector('#appAdmin .nav-item'));
+}
+
+function adminTab(tab, el) {
+  document.querySelectorAll('#appAdmin .nav-item').forEach(n => n.classList.remove('active'));
+  if (el) el.classList.add('active');
+  if      (tab === 'clientes')    renderAdminClientes();
+  else if (tab === 'novo')        renderAdminNovoCliente();
+  else if (tab === 'estrategias') renderAdminEstrategias();
+  else if (tab === 'config')      renderAdminConfig();
+}
+
+async function renderAdminClientes() {
+  document.getElementById('adminMain').innerHTML = '<div class="empty"><div class="empty-icon">⏳</div>Carregando...</div>';
+  const clientes = await getClients();
+  if (!clientes.length) {
+    document.getElementById('adminMain').innerHTML = '<div class="panel"><div class="empty"><div class="empty-icon">👥</div>Nenhum cliente cadastrado.</div></div>';
+    return;
+  }
+  const rows = clientes.map(c => `
+    <tr onclick="abrirModalCliente('${c.id}')">
+      <td style="font-family:'IBM Plex Mono',monospace;font-size:.68rem">${c.email}</td>
+      <td>${c.nome||'—'}</td>
+      <td style="font-size:.72rem">${c.plano||'—'}</td>
+      <td><span class="badge ${c.status==='Ativo'?'active-badge':c.status==='Pendente'?'pending-badge':'inactive-badge'}"><span class="badge-dot"></span>${c.status||'Pendente'}</span></td>
+      <td style="font-family:'IBM Plex Mono',monospace;color:var(--green)">${c.roi!=null?(c.roi>=0?'+':'')+c.roi+'%':'—'}</td>
+      <td style="font-family:'IBM Plex Mono',monospace">${c.whats||'—'}</td>
+    </tr>
+  `).join('');
+  document.getElementById('adminMain').innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.5rem;margin-bottom:1rem">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:2px">CLIENTES <span style="font-size:1rem;color:var(--muted)">(${clientes.length})</span></div>
+      <button class="btn btn-sm" onclick="adminTab('novo',null)">+ NOVO</button>
+    </div>
+    <div class="panel"><div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Email</th><th>Nome</th><th>Plano</th><th>Status</th><th>ROI</th><th>WhatsApp</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div></div>
+  `;
+}
+
+async function abrirModalCliente(id) {
+  const clientes = await getClients();
+  const c = clientes.find(x => x.id === id);
+  if (!c) return;
+  document.getElementById('modal-title').textContent = 'CLIENTE — ' + (c.nome || c.email);
+  document.getElementById('modal-body').innerHTML = `
+    <div class="field"><label>Nome</label><input type="text" id="m-nome" value="${c.nome||''}"></div>
+    <div class="field"><label>Email</label><input type="text" value="${c.email}" disabled style="opacity:.5"></div>
+    <div class="field"><label>WhatsApp</label><input type="text" id="m-whats" value="${c.whats||''}"></div>
+    <div class="field"><label>Plano</label>
+      <select id="m-plano">
+        <option value="">—</option>
+        <option value="Telegram - R$97/mês" ${c.plano==='Telegram - R$97/mês'?'selected':''}>Telegram · R$97/mês</option>
+        <option value="Bot por Estratégia - R$117 + 10%" ${c.plano==='Bot por Estratégia - R$117 + 10%'?'selected':''}>Bot · R$117 + 10%</option>
+        <option value="Anual - R$1.997 + 15%" ${c.plano==='Anual - R$1.997 + 15%'?'selected':''}>Anual · R$1.997 + 15%</option>
+      </select>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Status</label>
+        <select id="m-status">
+          <option value="Pendente" ${c.status==='Pendente'?'selected':''}>Pendente</option>
+          <option value="Ativo" ${c.status==='Ativo'?'selected':''}>Ativo</option>
+          <option value="Inativo" ${c.status==='Inativo'?'selected':''}>Inativo</option>
+        </select>
+      </div>
+      <div class="field"><label>Bot Ativo</label>
+        <select id="m-bot">
+          <option value="false" ${!c.bot_ativo?'selected':''}>Não</option>
+          <option value="true" ${c.bot_ativo?'selected':''}>Sim</option>
+        </select>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>ROI (%)</label><input type="number" id="m-roi" value="${c.roi||0}" step="0.1"></div>
+      <div class="field"><label>Lucro (R$)</label><input type="number" id="m-lucro" value="${c.lucro||0}" step="0.01"></div>
+    </div>
+    <div class="field"><label>Ops</label><input type="number" id="m-ops" value="${c.ops||0}"></div>
+    <div class="field"><label>Nota interna</label><input type="text" id="m-nota" value="${c.nota||''}" placeholder="Observações..."></div>
+    <div class="field"><label>Senha (deixar em branco para não alterar)</label><input type="text" id="m-senha" placeholder="nova senha..."></div>
+    <div class="err" id="m-err"></div>
+    <button class="btn" onclick="salvarClienteAdmin('${c.id}')">💾 SALVAR</button>
+    <button class="btn btn-danger" style="margin-top:.5rem" onclick="excluirCliente('${c.id}')">🗑 EXCLUIR</button>
+  `;
+  document.getElementById('modalCliente').classList.add('open');
+}
+
+async function salvarClienteAdmin(id) {
+  const senhaNova = document.getElementById('m-senha').value;
+  const patch = {
+    nome:      document.getElementById('m-nome').value.trim(),
+    whats:     document.getElementById('m-whats').value.trim(),
+    plano:     document.getElementById('m-plano').value,
+    status:    document.getElementById('m-status').value,
+    bot_ativo: document.getElementById('m-bot').value === 'true',
+    roi:       parseFloat(document.getElementById('m-roi').value)||0,
+    lucro:     parseFloat(document.getElementById('m-lucro').value)||0,
+    ops:       parseInt(document.getElementById('m-ops').value)||0,
+    nota:      document.getElementById('m-nota').value.trim(),
+  };
+  if (senhaNova) patch.senha = senhaNova;
+  try {
+    await sb.update('clientes', id, patch);
+    showToast('✓ Cliente atualizado!');
+    closeModal();
+    renderAdminClientes();
+  } catch(e) {
+    document.getElementById('m-err').textContent='Erro ao salvar.';
+    document.getElementById('m-err').classList.add('show');
+  }
+}
+
+async function excluirCliente(id) {
+  if (!confirm('Excluir este cliente? Ação irreversível.')) return;
+  try {
+    await sb.delete('clientes', id);
+    showToast('Cliente excluído.');
+    closeModal();
+    renderAdminClientes();
+  } catch(e) { showToast('Erro ao excluir.', true); }
+}
+
+function renderAdminNovoCliente() {
+  document.getElementById('adminMain').innerHTML = `
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:2px;margin-bottom:1rem">NOVO CLIENTE</div>
+    <div class="panel" style="max-width:500px">
+      <div class="field"><label>Email *</label><input type="email" id="nc-email" placeholder="email@exemplo.com"></div>
+      <div class="field"><label>Senha inicial *</label><input type="text" id="nc-senha" value="mudar123"></div>
+      <div class="field"><label>Nome</label><input type="text" id="nc-nome"></div>
+      <div class="field"><label>WhatsApp</label><input type="text" id="nc-whats"></div>
+      <div class="field"><label>Plano</label>
+        <select id="nc-plano">
+          <option value="">Selecione...</option>
+          <option value="Telegram - R$97/mês">Telegram · R$97/mês</option>
+          <option value="Bot por Estratégia - R$117 + 10%">Bot · R$117 + 10%</option>
+          <option value="Anual - R$1.997 + 15%">Anual · R$1.997 + 15%</option>
+        </select>
+      </div>
+      <div class="err" id="nc-err"></div>
+      <button class="btn" onclick="criarClienteAdmin()">➕ CRIAR CLIENTE</button>
+    </div>
+  `;
+}
+
+async function criarClienteAdmin() {
+  const email = document.getElementById('nc-email').value.trim().toLowerCase();
+  const senha = document.getElementById('nc-senha').value;
+  const nome  = document.getElementById('nc-nome').value.trim();
+  const whats = document.getElementById('nc-whats').value.trim();
+  const plano = document.getElementById('nc-plano').value;
+  const errEl = document.getElementById('nc-err');
+  errEl.classList.remove('show');
+  if (!email||!senha) { errEl.textContent='Email e senha obrigatórios.'; errEl.classList.add('show'); return; }
+  try {
+    await sb.insert('clientes', {
+      email, senha, nome, whats, plano, banca:0,
+      bf_login:'', bf_senha:'', status:'Pendente', bot_ativo:false,
+      roi:0, lucro:0, ops:0,
+      vencimento: new Date(Date.now()+30*24*60*60*1000).toISOString()
+    });
+    showToast('✓ Cliente criado! Senha: ' + senha);
+    adminTab('clientes', document.querySelector('#appAdmin .nav-item'));
+  } catch(e) {
+    errEl.textContent = e.message.includes('duplicate') ? 'Email já cadastrado.' : 'Erro ao criar.';
+    errEl.classList.add('show');
+  }
+}
+
+function renderAdminEstrategias() {
+  document.getElementById('adminMain').innerHTML = `
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:2px;margin-bottom:1rem">ESTRATÉGIAS</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1rem">
+      ${ESTRATEGIAS.map(e=>`
+        <div class="panel">
+          <div style="font-size:2rem;margin-bottom:.5rem">${e.icone}</div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:2px">${e.nome}</div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--muted);margin-bottom:.5rem">${e.mercado}</div>
+          <div style="font-size:.78rem;color:var(--muted2);line-height:1.6">${e.desc}</div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+function renderAdminConfig() {
+  document.getElementById('adminMain').innerHTML = `
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:2px;margin-bottom:1rem">CONFIGURAÇÕES</div>
+    <div class="panel" style="max-width:500px">
+      <div class="panel-title">Sistema</div>
+      <div class="info-row"><span class="info-label">Chave PIX</span><span class="info-val" style="font-size:.65rem;word-break:break-all">${PIX_KEY}</span></div>
+      <div class="info-row"><span class="info-label">WhatsApp Admin</span><span class="info-val">+${WPP_ADMIN}</span></div>
+      <div class="info-row"><span class="info-label">Valor Bot</span><span class="info-val">R$ ${VALOR_BOT}</span></div>
+      <div class="info-row"><span class="info-label">Supabase</span><span class="info-val" style="color:var(--green)">● Conectado</span></div>
+    </div>
+  `;
+}
+
+// ═══════════════════════════════════════════════════════
+// INIT — verifica sessão salva ao carregar a página
+// ═══════════════════════════════════════════════════════
+(async function init() {
+  const session = getSession();
+  if (!session) { showLogin(); return; }
+
+  if (session.type === 'admin') {
+    loadAdminPanel();
+    return;
+  }
+
+  if (session.type === 'client' && session.id) {
+    try {
+      const rows = await sb.get('clientes', { id: session.id });
+      if (rows && rows[0]) {
+        const hist = await sb.get('historico', { cliente_id: session.id }).catch(() => []);
+        const c = mapClient(rows[0]);
+        c.historico = (hist||[]).map(h => ({ data:h.data, banca:h.banca, lucro:h.lucro, roi:h.roi }));
+        loadClientDashboard(c);
+        conectarRealtime(session.id);
+        const planoUrl = new URLSearchParams(window.location.search).get('plano');
+        if (planoUrl) {
+          setTimeout(() => {
+            const nav = [...document.querySelectorAll('#appClient .nav-item')].find(el => el.textContent.includes('Planos'));
+            if (nav) clientTab('planos', nav);
+          }, 400);
+        }
+        return;
+      }
+    } catch(e) { /* sessão inválida */ }
+    clearSession();
+  }
+  showLogin();
+})();
 
