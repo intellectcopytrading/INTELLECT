@@ -428,9 +428,7 @@ async function doRegister() {
 
 function calcVencimento(plano) {
   const d = new Date();
-  if (plano.includes('Mensal')) d.setMonth(d.getMonth() + 1);
-  else if (plano.includes('6 Meses')) d.setMonth(d.getMonth() + 6);
-  else if (plano.includes('Anual')) d.setFullYear(d.getFullYear() + 1);
+  if (plano.includes('Anual')) d.setFullYear(d.getFullYear() + 1);
   else d.setMonth(d.getMonth() + 1);
   return d.toISOString();
 }
@@ -687,9 +685,8 @@ function renderClientConta() {
         <select id="p-plano" onchange="renderClientConta()">
           <option value="">Selecione seu plano...</option>
           <option value="Telegram - R$97/mês" ${c.plano==='Telegram - R$97/mês'?'selected':''}>Telegram · R$97/mês</option>
-          <option value="Mensal - R$397/mês" ${c.plano==='Mensal - R$397/mês'?'selected':''}>Mensal · R$397/mês</option>
-          <option value="6 Meses - R$1.097" ${c.plano==='6 Meses - R$1.097'?'selected':''}>6 Meses · R$1.097</option>
-          <option value="Anual - R$1.597" ${c.plano==='Anual - R$1.597'?'selected':''}>Anual · R$1.597</option>
+          <option value="Bot por Estratégia - R$117 + 10%" ${c.plano==='Bot por Estratégia - R$117 + 10%'?'selected':''}>Bot por Estratégia · R$117 + 10% lucro</option>
+          <option value="Anual - R$1.997 + 15%" ${c.plano==='Anual - R$1.997 + 15%'?'selected':''}>Anual · R$1.997 + 15% lucro</option>
         </select>
       </div>
       ${!isTelegram ? `<div class="field"><label>Banca Inicial na Betfair (R$)</label><input type="number" id="p-banca" value="${c.banca||''}" placeholder="Ex: 5000"></div>` : ''}
@@ -934,9 +931,8 @@ async function renderAdminClientes() {
 function calcMRR(clients) {
   return clients.reduce((sum, c) => {
     if (c.plano.includes('Telegram')) return sum + 97;
-    if (c.plano.includes('Mensal')) return sum + 397;
-    if (c.plano.includes('6 Meses')) return sum + Math.round(1097/6);
-    if (c.plano.includes('Anual')) return sum + Math.round(1597/12);
+    if (c.plano.includes('Bot por Estratégia')) return sum + 117;
+    if (c.plano.includes('Anual')) return sum + Math.round(1997/12);
     return sum;
   }, 0);
 }
@@ -1068,9 +1064,8 @@ function renderAdminNovo() {
         <div class="field"><label>Plano</label>
           <select id="an-plano" onchange="toggleBetfairAdmin()">
             <option value="Telegram - R$97/mês">Telegram · R$97/mês</option>
-            <option value="Mensal - R$397/mês">Mensal · R$397/mês</option>
-            <option value="6 Meses - R$1.097">6 Meses · R$1.097</option>
-            <option value="Anual - R$1.597">Anual · R$1.597</option>
+            <option value="Bot por Estratégia - R$117 + 10%">Bot por Estratégia · R$117 + 10% lucro</option>
+            <option value="Anual - R$1.997 + 15%">Anual · R$1.997 + 15% lucro</option>
           </select>
         </div>
       </div>
