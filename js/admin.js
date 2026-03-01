@@ -387,6 +387,11 @@ async function salvarClienteAdmin(id) {
   if (btnSalvar) { btnSalvar.textContent = 'SALVANDO...'; btnSalvar.disabled = true; }
 
   const senhaNova = document.getElementById('m-senha').value;
+  if (senhaNova && senhaNova.length < 6) {
+    const errEl = document.getElementById('m-err');
+    if (errEl) { errEl.textContent = 'Senha mínima de 6 caracteres.'; errEl.classList.add('show'); }
+    return;
+  }
 
   // Bots por estratégia
   const bot_e1 = document.getElementById('m-bot-e1')?.checked || false;
@@ -408,7 +413,7 @@ async function salvarClienteAdmin(id) {
     ops:       parseInt(document.getElementById('m-ops').value)     || 0,
     nota:      document.getElementById('m-nota').value.trim(),
   };
-  if (senhaNova) patch.senha = senhaNova;
+  if (senhaNova) patch.senha = await sha256(senhaNova);
 
   try {
     await sb.update('clientes', id, patch);
@@ -647,8 +652,9 @@ async function criarClienteAdmin() {
   if (btn) { btn.textContent = 'CRIANDO...'; btn.disabled = true; }
 
   try {
+    const senhaHash = await sha256(senha);
     await sb.insert('clientes', {
-      email, senha, nome, whats, plano, banca: 0,
+      email, senha: senhaHash, nome, whats, plano, banca: 0,
       bf_login: '', bf_senha: '', status: 'Pendente',
       bot_ativo: false, bot_e1: false, bot_e2: false, bot_e3: false,
       roi: 0, lucro: 0, ops: 0,
