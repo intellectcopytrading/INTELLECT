@@ -1,5 +1,5 @@
 /* ════════════════════════════════════════════════
-   js/admin.js — Painel administrativo v2
+   js/admin.js — Painel administrativo v3
 ════════════════════════════════════════════════ */
 
 /* ── NAVEGAÇÃO ADMIN ── */
@@ -35,20 +35,19 @@ async function renderAdminDashboard() {
     return;
   }
 
-  const hoje = new Date();
-  const ativos   = clientes.filter(c => c.status === 'Ativo').length;
+  const hoje      = new Date();
+  const ativos    = clientes.filter(c => c.status === 'Ativo').length;
   const pendentes = clientes.filter(c => c.status === 'Pendente').length;
-  const botsAtivos = clientes.filter(c => c.bot_ativo || c.bot_e1 || c.bot_e2 || c.bot_e3).length;
+  const botsAtivos= clientes.filter(c => c.bot_ativo || c.bot_e1 || c.bot_e2 || c.bot_e3).length;
+  const tipsClientes = clientes.filter(c => clienteTemTips(c.plano)).length;
   const vencendo  = clientes.filter(c => {
-    const d = new Date(c.vencimento);
-    const dias = Math.round((d - hoje) / 86_400_000);
+    const dias = Math.round((new Date(c.vencimento) - hoje) / 86_400_000);
     return dias >= 0 && dias <= 7;
   }).length;
-  const vencidos = clientes.filter(c => new Date(c.vencimento) < hoje).length;
+  const vencidos  = clientes.filter(c => new Date(c.vencimento) < hoje).length;
 
-  // Cards por cliente
   const cards = clientes.map(c => {
-    const vc = new Date(c.vencimento);
+    const vc   = new Date(c.vencimento);
     const dias = Math.round((vc - hoje) / 86_400_000);
     const pagStatus = dias < 0
       ? `<span style="color:var(--red);font-weight:600">● VENCIDO</span>`
@@ -57,6 +56,7 @@ async function renderAdminDashboard() {
         : `<span style="color:var(--green);font-weight:600">● EM DIA</span>`;
 
     const botsAtivosCliente = _botsAtivosCliente(c);
+    const isTips = clienteTemTips(c.plano);
 
     return `
       <div class="panel" style="cursor:pointer;transition:border .2s" onclick="abrirModalCliente('${esc(String(c.id))}')"
@@ -87,9 +87,11 @@ async function renderAdminDashboard() {
             ${esc(c.plano || '—')}
           </div>
           <div style="display:flex;gap:.3rem;flex-wrap:wrap">
-            ${botsAtivosCliente.length
-              ? botsAtivosCliente.map(b => `<span class="badge active-badge" style="font-size:.52rem"><span class="badge-dot pulse"></span>${esc(b)}</span>`).join('')
-              : `<span class="badge inactive-badge" style="font-size:.52rem"><span class="badge-dot"></span>SEM BOT</span>`}
+            ${isTips && !botsAtivosCliente.length
+              ? `<span class="badge" style="font-size:.52rem;background:rgba(56,182,255,.1);color:var(--blue)">📊 TIPS</span>`
+              : botsAtivosCliente.length
+                ? botsAtivosCliente.map(b => `<span class="badge active-badge" style="font-size:.52rem"><span class="badge-dot pulse"></span>${esc(b)}</span>`).join('')
+                : `<span class="badge inactive-badge" style="font-size:.52rem"><span class="badge-dot"></span>SEM PLANO</span>`}
           </div>
         </div>
         ${c.whats ? `
@@ -118,6 +120,11 @@ async function renderAdminDashboard() {
         <div class="kpi-sub">aguardando config</div>
       </div>
       <div class="kpi b">
+        <div class="kpi-label">Plano Tips</div>
+        <div class="kpi-val b">${tipsClientes}</div>
+        <div class="kpi-sub">com acesso a tips</div>
+      </div>
+      <div class="kpi b">
         <div class="kpi-label">Bots Ativos</div>
         <div class="kpi-val b">${botsAtivos}</div>
         <div class="kpi-sub">clientes com bot</div>
@@ -138,13 +145,11 @@ async function renderAdminDashboard() {
   `;
 }
 
-/* ── Helper: bots ativos de um cliente ── */
 function _botsAtivosCliente(c) {
   const bots = [];
   if (c.bot_e1 || c.botE1) bots.push('E1');
   if (c.bot_e2 || c.botE2) bots.push('E2');
   if (c.bot_e3 || c.botE3) bots.push('E3');
-  // fallback: bot_ativo mas sem campos individuais
   if (!bots.length && (c.bot_ativo || c.botAtivo)) bots.push('BOT');
   return bots;
 }
@@ -165,7 +170,7 @@ async function renderAdminClientes() {
   const hoje = new Date();
   const rows = clientes.map(c => {
     const statusClass = c.status === 'Ativo' ? 'active-badge' : c.status === 'Pendente' ? 'pending-badge' : 'inactive-badge';
-    const vc = new Date(c.vencimento);
+    const vc   = new Date(c.vencimento);
     const dias = Math.round((vc - hoje) / 86_400_000);
     const pagCol = dias < 0
       ? `<span style="color:var(--red);font-size:.65rem">VENCIDO</span>`
@@ -173,7 +178,8 @@ async function renderAdminClientes() {
         ? `<span style="color:var(--yellow);font-size:.65rem">${dias}d</span>`
         : `<span style="color:var(--green);font-size:.65rem">OK</span>`;
 
-    const botsCol = _botsAtivosCliente(c).join(', ') || '—';
+    const botsCol  = _botsAtivosCliente(c).join(', ') || '—';
+    const isTips   = clienteTemTips(c.plano);
 
     return `
       <tr onclick="abrirModalCliente('${esc(String(c.id))}')">
@@ -185,7 +191,14 @@ async function renderAdminClientes() {
         <td>${pagCol}</td>
         <td style="font-family:'IBM Plex Mono',monospace;font-size:.65rem">${esc(botsCol)}</td>
         <td style="font-family:'IBM Plex Mono',monospace">${esc(c.whats) || '—'}</td>
-        <td>${c.plano?.includes('Telegram') ? `<button class="btn btn-sm" style="font-size:.6rem;padding:.2rem .5rem" onclick="event.stopPropagation();verDashboardTelegramCliente('${esc(String(c.id))}','${esc(c.nome||c.email)}')">📊 Dashboard</button>` : ''}</td>
+        <td>
+          ${isTips
+            ? `<button class="btn btn-sm" style="font-size:.6rem;padding:.2rem .5rem"
+                onclick="event.stopPropagation();verDashboardTipsCliente('${esc(String(c.id))}','${esc(c.nome||c.email)}')">
+                📊 Tips
+               </button>`
+            : ''}
+        </td>
       </tr>`;
   }).join('');
 
@@ -199,7 +212,12 @@ async function renderAdminClientes() {
     <div class="panel">
       <div class="tbl-wrap">
         <table>
-          <thead><tr><th>Email</th><th>Nome</th><th>Plano</th><th>Status</th><th>ROI</th><th>Pgto</th><th>Bots</th><th>WhatsApp</th><th></th></tr></thead>
+          <thead>
+            <tr>
+              <th>Email</th><th>Nome</th><th>Plano</th><th>Status</th>
+              <th>ROI</th><th>Pgto</th><th>Bots</th><th>WhatsApp</th><th></th>
+            </tr>
+          </thead>
           <tbody>${rows}</tbody>
         </table>
       </div>
@@ -220,7 +238,6 @@ async function abrirModalCliente(id) {
 
   document.getElementById('modal-title').textContent = 'CLIENTE — ' + (c.nome || c.email);
 
-  // Busca histórico de operações do cliente
   let hist = [];
   try { hist = await sb.get('historico', { cliente_id: c.id }); } catch {}
 
@@ -239,36 +256,35 @@ async function abrirModalCliente(id) {
     </tr>`).join('');
 
   document.getElementById('modal-body').innerHTML = `
-    <!-- DADOS PESSOAIS -->
     <div style="font-family:'IBM Plex Mono',monospace;font-size:.58rem;letter-spacing:2px;color:var(--muted);margin-bottom:.8rem">// DADOS PESSOAIS</div>
     <div class="field"><label>Nome</label><input type="text" id="m-nome" value="${esc(c.nome)}"></div>
     <div class="field"><label>Email</label><input type="text" value="${esc(c.email)}" disabled style="opacity:.5"></div>
     <div class="field"><label>WhatsApp</label><input type="text" id="m-whats" value="${esc(c.whats)}"></div>
     <div class="field">
       <label>Plano</label>
-      <select id="m-plano">
+      <select id="m-plano" onchange="toggleBetfairAdmin()">
         <option value="">—</option>
         ${buildPlanosOptions(c.plano)}
       </select>
     </div>
 
-    <!-- ACESSO BETFAIR -->
     <div style="font-family:'IBM Plex Mono',monospace;font-size:.58rem;letter-spacing:2px;color:var(--muted);margin:.8rem 0">// ACESSO BETFAIR</div>
-    <div class="field">
-      <label>Login Betfair</label>
-      <input type="text" id="m-bfl" value="${esc(c.bf_login || '')}" placeholder="email@betfair.com">
-    </div>
-    <div class="field">
-      <label>Senha Betfair
-        <button type="button" onclick="toggleReveal('m-bfs','m-bfs-btn')" id="m-bfs-btn"
-          style="margin-left:.5rem;background:none;border:1px solid var(--border2);border-radius:4px;color:var(--muted);font-size:.6rem;padding:.1rem .4rem;cursor:pointer">
-          👁 revelar
-        </button>
-      </label>
-      <input type="password" id="m-bfs" value="${esc(c.bf_senha || '')}" placeholder="••••••••">
+    <div id="m-betfair-wrap" ${clienteTemTips(c.plano) && !_botsAtivosCliente(c).length ? 'style="display:none"' : ''}>
+      <div class="field">
+        <label>Login Betfair</label>
+        <input type="text" id="m-bfl" value="${esc(c.bf_login || '')}" placeholder="email@betfair.com">
+      </div>
+      <div class="field">
+        <label>Senha Betfair
+          <button type="button" onclick="toggleReveal('m-bfs','m-bfs-btn')" id="m-bfs-btn"
+            style="margin-left:.5rem;background:none;border:1px solid var(--border2);border-radius:4px;color:var(--muted);font-size:.6rem;padding:.1rem .4rem;cursor:pointer">
+            👁 revelar
+          </button>
+        </label>
+        <input type="password" id="m-bfs" value="${esc(c.bf_senha || '')}" placeholder="••••••••">
+      </div>
     </div>
 
-    <!-- STATUS E BOTS -->
     <div style="font-family:'IBM Plex Mono',monospace;font-size:.58rem;letter-spacing:2px;color:var(--muted);margin:.8rem 0">// STATUS E BOTS</div>
     <div class="field-row">
       <div class="field">
@@ -301,7 +317,6 @@ async function abrirModalCliente(id) {
       </div>
     </div>
 
-    <!-- RESULTADOS -->
     <div style="font-family:'IBM Plex Mono',monospace;font-size:.58rem;letter-spacing:2px;color:var(--muted);margin:.8rem 0">// RESULTADOS</div>
     <div class="field-row">
       <div class="field"><label>ROI (%)</label><input type="number" id="m-roi" value="${c.roi || 0}" step="0.1"></div>
@@ -315,31 +330,18 @@ async function abrirModalCliente(id) {
     <button class="btn" onclick="salvarClienteAdmin('${esc(String(c.id))}')">💾 SALVAR ALTERAÇÕES</button>
     <button class="btn btn-danger" style="margin-top:.5rem" onclick="excluirCliente('${esc(String(c.id))}')">🗑 EXCLUIR CLIENTE</button>
 
-    <!-- UPLOAD RELATÓRIO DO BOT -->
     <div style="font-family:'IBM Plex Mono',monospace;font-size:.58rem;letter-spacing:2px;color:var(--muted);margin:1.2rem 0 .6rem">// UPLOAD RELATÓRIO DO BOT</div>
     <div style="background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:.8rem 1rem;margin-bottom:1rem">
       <div style="font-size:.72rem;color:var(--muted2);margin-bottom:.8rem;line-height:1.6">
         Selecione os CSVs exportados do bot. O sistema processa e atualiza o dashboard do cliente automaticamente.
       </div>
-      <div class="field">
-        <label>CSV de Estatísticas <span style="color:var(--muted)">(*estatisticas*)</span></label>
-        <input type="file" id="csv-estat" accept=".csv" style="font-size:.65rem;color:var(--muted2)">
-      </div>
-      <div class="field">
-        <label>CSV de Operações <span style="color:var(--muted)">(*operacoes*)</span></label>
-        <input type="file" id="csv-ops" accept=".csv" style="font-size:.65rem;color:var(--muted2)">
-      </div>
-      <div class="field">
-        <label>CSV de Ordens <span style="color:var(--muted)">(*ordens* — opcional)</span></label>
-        <input type="file" id="csv-ordens" accept=".csv" style="font-size:.65rem;color:var(--muted2)">
-      </div>
+      <div class="field"><label>CSV de Estatísticas <span style="color:var(--muted)">(*estatisticas*)</span></label><input type="file" id="csv-estat" accept=".csv" style="font-size:.65rem;color:var(--muted2)"></div>
+      <div class="field"><label>CSV de Operações <span style="color:var(--muted)">(*operacoes*)</span></label><input type="file" id="csv-ops" accept=".csv" style="font-size:.65rem;color:var(--muted2)"></div>
+      <div class="field"><label>CSV de Ordens <span style="color:var(--muted)">(*ordens* — opcional)</span></label><input type="file" id="csv-ordens" accept=".csv" style="font-size:.65rem;color:var(--muted2)"></div>
       <div id="csv-preview" style="display:none;font-family:'IBM Plex Mono',monospace;font-size:.62rem;color:var(--green);margin:.5rem 0;padding:.5rem;background:rgba(0,229,160,.06);border-radius:6px"></div>
-      <button class="btn btn-sm" style="width:100%;margin-top:.3rem" onclick="processarRelatorioBot('${esc(String(c.id))}')">
-        📊 PROCESSAR E SALVAR RELATÓRIO
-      </button>
+      <button class="btn btn-sm" style="width:100%;margin-top:.3rem" onclick="processarRelatorioBot('${esc(String(c.id))}')">📊 PROCESSAR E SALVAR RELATÓRIO</button>
     </div>
 
-    <!-- OPERAÇÕES -->
     <div style="font-family:'IBM Plex Mono',monospace;font-size:.58rem;letter-spacing:2px;color:var(--muted);margin:1.2rem 0 .6rem">// ADICIONAR OPERAÇÃO</div>
     <div style="background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:.8rem 1rem;margin-bottom:1rem">
       <div class="field-row">
@@ -368,20 +370,23 @@ async function abrirModalCliente(id) {
   document.getElementById('modalCliente').classList.add('open');
 }
 
-/* ── Revelar senha ── */
+function toggleBetfairAdmin() {
+  const plano   = document.getElementById('m-plano').value;
+  const temBots = document.getElementById('m-bot-e1')?.checked ||
+                  document.getElementById('m-bot-e2')?.checked ||
+                  document.getElementById('m-bot-e3')?.checked;
+  const soTips  = clienteTemTips(plano) && !plano.includes('Bot') && !plano.includes('Anual') && !temBots;
+  const wrap    = document.getElementById('m-betfair-wrap');
+  if (wrap) wrap.style.display = soTips ? 'none' : '';
+}
+
 function toggleReveal(inputId, btnId) {
   const input = document.getElementById(inputId);
   const btn   = document.getElementById(btnId);
-  if (input.type === 'password') {
-    input.type = 'text';
-    btn.textContent = '🙈 ocultar';
-  } else {
-    input.type = 'password';
-    btn.textContent = '👁 revelar';
-  }
+  if (input.type === 'password') { input.type = 'text';     btn.textContent = '🙈 ocultar'; }
+  else                           { input.type = 'password'; btn.textContent = '👁 revelar'; }
 }
 
-/* ── Salvar cliente ── */
 async function salvarClienteAdmin(id) {
   const btnSalvar = document.querySelector('#modalCliente .btn:not(.btn-danger)');
   if (btnSalvar) { btnSalvar.textContent = 'SALVANDO...'; btnSalvar.disabled = true; }
@@ -390,14 +395,14 @@ async function salvarClienteAdmin(id) {
   if (senhaNova && senhaNova.length < 6) {
     const errEl = document.getElementById('m-err');
     if (errEl) { errEl.textContent = 'Senha mínima de 6 caracteres.'; errEl.classList.add('show'); }
+    if (btnSalvar) { btnSalvar.textContent = '💾 SALVAR ALTERAÇÕES'; btnSalvar.disabled = false; }
     return;
   }
 
-  // Bots por estratégia
-  const bot_e1 = document.getElementById('m-bot-e1')?.checked || false;
-  const bot_e2 = document.getElementById('m-bot-e2')?.checked || false;
-  const bot_e3 = document.getElementById('m-bot-e3')?.checked || false;
-  const algumBot = bot_e1 || bot_e2 || bot_e3;
+  const bot_e1  = document.getElementById('m-bot-e1')?.checked || false;
+  const bot_e2  = document.getElementById('m-bot-e2')?.checked || false;
+  const bot_e3  = document.getElementById('m-bot-e3')?.checked || false;
+  const algumBot= bot_e1 || bot_e2 || bot_e3;
 
   const patch = {
     nome:      document.getElementById('m-nome').value.trim(),
@@ -406,8 +411,8 @@ async function salvarClienteAdmin(id) {
     status:    document.getElementById('m-status').value,
     bot_ativo: document.getElementById('m-bot').value === 'true' || algumBot,
     bot_e1, bot_e2, bot_e3,
-    bf_login:  document.getElementById('m-bfl').value.trim(),
-    bf_senha:  document.getElementById('m-bfs').value,
+    bf_login:  document.getElementById('m-bfl')?.value.trim() || '',
+    bf_senha:  document.getElementById('m-bfs')?.value || '',
     roi:       parseFloat(document.getElementById('m-roi').value)   || 0,
     lucro:     parseFloat(document.getElementById('m-lucro').value) || 0,
     ops:       parseInt(document.getElementById('m-ops').value)     || 0,
@@ -419,7 +424,6 @@ async function salvarClienteAdmin(id) {
     await sb.update('clientes', id, patch);
     showToast('✓ Cliente atualizado!');
     closeModal();
-    // Atualiza a aba que estiver ativa no admin
     const activeNav = document.querySelector('#appAdmin .nav-item.active');
     const activeTab = activeNav?.textContent?.trim();
     if (activeTab?.includes('Dashboard')) renderAdminDashboard();
@@ -432,7 +436,6 @@ async function salvarClienteAdmin(id) {
   }
 }
 
-/* ── Adicionar operação ── */
 async function adicionarOperacao(clienteId) {
   const data  = document.getElementById('op-data').value;
   const banca = parseFloat(document.getElementById('op-banca').value);
@@ -450,13 +453,11 @@ async function adicionarOperacao(clienteId) {
       banca, lucro, roi: roi || 0,
     });
     showToast('✓ Operação adicionada!');
-    // Recarrega o modal
     closeModal();
     setTimeout(() => abrirModalCliente(clienteId), 200);
   } catch { showToast('Erro ao adicionar operação.', true); }
 }
 
-/* ── Deletar operação ── */
 async function deletarOperacao(opId, clienteId) {
   if (!confirm('Remover esta operação?')) return;
   try {
@@ -467,7 +468,6 @@ async function deletarOperacao(opId, clienteId) {
   } catch { showToast('Erro ao remover.', true); }
 }
 
-/* ── Excluir cliente ── */
 async function excluirCliente(id) {
   if (!confirm('Excluir este cliente? Ação irreversível.')) return;
   try {
@@ -479,17 +479,14 @@ async function excluirCliente(id) {
 }
 
 /* ════════════════════════════════════════════════
-   UPLOAD E PROCESSAMENTO DE RELATÓRIO DO BOT
+   UPLOAD DE RELATÓRIO DO BOT
 ════════════════════════════════════════════════ */
-
 function _parseCSV(text) {
   const lines = text.trim().split('\n').map(l => l.replace(/\r/g, ''));
   if (!lines.length) return [];
   const headers = lines[0].split(',').map(h => h.trim());
   return lines.slice(1).map(line => {
-    // trata campos com vírgula dentro de aspas
-    const cols = [];
-    let cur = '', inQ = false;
+    const cols = []; let cur = '', inQ = false;
     for (const ch of line) {
       if (ch === '"') { inQ = !inQ; }
       else if (ch === ',' && !inQ) { cols.push(cur.trim()); cur = ''; }
@@ -519,87 +516,67 @@ async function processarRelatorioBot(clienteId) {
 
   try {
     const [estat, ops, ordens] = await Promise.all([
-      _lerCSV('csv-estat'),
-      _lerCSV('csv-ops'),
-      _lerCSV('csv-ordens'),
+      _lerCSV('csv-estat'), _lerCSV('csv-ops'), _lerCSV('csv-ordens'),
     ]);
-
     if (!estat.length && !ops.length) {
-      showToast('Selecione pelo menos os CSVs de estatísticas e operações.', true);
-      return;
+      showToast('Selecione pelo menos os CSVs de estatísticas e operações.', true); return;
     }
 
-    // Processa estatísticas → objeto chave/valor
     const estatObj = {};
     estat.forEach(row => {
       const chave = (row['Métrica'] || row['metrica'] || '').trim();
-      const valor = (row['Valor'] || row['valor'] || '').trim();
+      const valor = (row['Valor']   || row['valor']   || '').trim();
       if (chave) estatObj[chave] = valor;
     });
 
-    // Extrai nome do bot (do ops ou ordens)
     const nomeBot = ops[0]?.['Nome do Bot'] || ordens[0]?.['Nome do Bot'] || 'Bot';
-
-    // Processa operações → array limpo
     const operacoesLimpas = ops.map(op => ({
-      data:        op['Data da Aposta'] || '',
-      evento:      op['Nome do Evento'] || '',
-      mercado:     op['Nome do Mercado'] || '',
-      competicao:  op['Nome da Competição'] || '',
-      pl:          parseFloat(op['PL']) || 0,
-      netPl:       parseFloat(op['netPl']) || 0,
-      stake:       parseFloat(op['stake']) || 0,
-      banca:       parseFloat(op['Banca do Bot']) || 0,
-      placar:      `${op['Placar Final Casa'] ?? ''} x ${op['Placar Final Visitante'] ?? ''}`,
-      resultado:   parseFloat(op['PL']) >= 0 ? 'green' : 'red',
+      data:       op['Data da Aposta'] || '',
+      evento:     op['Nome do Evento'] || '',
+      mercado:    op['Nome do Mercado'] || '',
+      competicao: op['Nome da Competição'] || '',
+      pl:         parseFloat(op['PL']) || 0,
+      netPl:      parseFloat(op['netPl']) || 0,
+      stake:      parseFloat(op['stake']) || 0,
+      banca:      parseFloat(op['Banca do Bot']) || 0,
+      placar:     `${op['Placar Final Casa'] ?? ''} x ${op['Placar Final Visitante'] ?? ''}`,
+      resultado:  parseFloat(op['PL']) >= 0 ? 'green' : 'red',
     })).sort((a, b) => new Date(a.data) - new Date(b.data));
 
-    // Calcula KPIs a partir das operações (fallback se estatísticas vazias)
-    const lucroTotal    = operacoesLimpas.reduce((s, o) => s + o.netPl, 0);
-    const greens        = operacoesLimpas.filter(o => o.resultado === 'green').length;
-    const totalOps      = operacoesLimpas.length;
-    const winRate       = totalOps ? ((greens / totalOps) * 100).toFixed(1) + '%' : '0%';
-    const bancaInicial  = parseFloat(estatObj['Banca'] || operacoesLimpas[0]?.banca || 0);
-    const roi           = estatObj['ROI'] || (bancaInicial ? ((lucroTotal / bancaInicial) * 100).toFixed(2) + '%' : '0%');
+    const lucroTotal   = operacoesLimpas.reduce((s, o) => s + o.netPl, 0);
+    const greens       = operacoesLimpas.filter(o => o.resultado === 'green').length;
+    const totalOps     = operacoesLimpas.length;
+    const winRate      = totalOps ? ((greens / totalOps) * 100).toFixed(1) + '%' : '0%';
+    const bancaInicial = parseFloat(estatObj['Banca'] || operacoesLimpas[0]?.banca || 0);
+    const roi          = estatObj['ROI'] || (bancaInicial ? ((lucroTotal / bancaInicial) * 100).toFixed(2) + '%' : '0%');
 
-    // Monta objeto final
     const estatFinal = {
-      'Taxa de Acerto': estatObj['Taxa de Acerto'] || winRate,
-      'ROI':            roi,
-      'Yield':          estatObj['Yield'] || '—',
-      'Max Drawdown':   estatObj['Max Drawdown'] || '—',
-      'Lucro Total':    estatObj['Lucro Total'] || lucroTotal.toFixed(2),
-      'Greens':         estatObj['Quantidade de Greens'] || greens,
-      'Reds':           estatObj['Quantidade de Reds'] || (totalOps - greens),
-      'Banca':          estatObj['Banca'] || bancaInicial,
-      'Total Operações':totalOps,
+      'Taxa de Acerto':  estatObj['Taxa de Acerto'] || winRate,
+      'ROI':             roi,
+      'Yield':           estatObj['Yield'] || '—',
+      'Max Drawdown':    estatObj['Max Drawdown'] || '—',
+      'Lucro Total':     estatObj['Lucro Total'] || lucroTotal.toFixed(2),
+      'Greens':          estatObj['Quantidade de Greens'] || greens,
+      'Reds':            estatObj['Quantidade de Reds'] || (totalOps - greens),
+      'Banca':           estatObj['Banca'] || bancaInicial,
+      'Total Operações': totalOps,
     };
 
-    // Salva no Supabase — substitui relatório anterior do mesmo bot
     await sb.deleteWhere('bot_relatorios', { cliente_id: clienteId, nome_bot: nomeBot }).catch(() => {});
     await sb.insert('bot_relatorios', {
-      cliente_id:   clienteId,
-      nome_bot:     nomeBot,
-      estatisticas: estatFinal,
-      operacoes:    operacoesLimpas,
+      cliente_id: clienteId, nome_bot: nomeBot,
+      estatisticas: estatFinal, operacoes: operacoesLimpas,
     });
 
-    // Atualiza também os campos principais do cliente
-    const roiNum = parseFloat(roi) || 0;
     await sb.update('clientes', clienteId, {
-      roi:   roiNum,
-      lucro: lucroTotal,
-      ops:   totalOps,
+      roi: parseFloat(roi) || 0, lucro: lucroTotal, ops: totalOps,
     });
 
-    // Preview
     if (preview) {
       preview.style.display = 'block';
       preview.innerHTML = `✓ Processado! ${totalOps} operações · ROI ${roi} · Win Rate ${estatFinal['Taxa de Acerto']} · Lucro R$${lucroTotal.toFixed(2)}`;
     }
-
     showToast(`✓ Relatório de ${nomeBot} salvo com sucesso!`);
-
   } catch (e) {
     console.error('[processarRelatorioBot]', e);
     showToast('Erro ao processar CSV. Verifique os arquivos.', true);
@@ -661,7 +638,8 @@ async function criarClienteAdmin() {
       vencimento: plano ? calcVencimento(plano) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
     });
     showToast(`✓ Cliente criado! Senha: ${senha}`);
-    const navClientes = [...document.querySelectorAll('#appAdmin .nav-item')].find(n => n.textContent.includes('Clientes'));
+    const navClientes = [...document.querySelectorAll('#appAdmin .nav-item')]
+      .find(n => n.textContent.includes('Clientes'));
     adminTab('clientes', navClientes || document.querySelector('#appAdmin .nav-item'));
   } catch (e) {
     errEl.textContent = e.message.includes('duplicate') ? 'Email já cadastrado.' : 'Erro ao criar.';
@@ -701,7 +679,7 @@ async function renderAdminTips() {
   main.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.5rem;margin-bottom:1rem">
       <div style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:2px">
-        TIPS TELEGRAM <span style="font-size:1rem;color:var(--muted)">(${tips.length})</span>
+        TIPS <span style="font-size:1rem;color:var(--muted)">(${tips.length})</span>
       </div>
       <div style="display:flex;gap:.5rem;flex-wrap:wrap">
         <button class="btn btn-sm" onclick="abrirModalNovaTip()">✏️ NOVA TIP</button>
@@ -711,7 +689,7 @@ async function renderAdminTips() {
 
     ${tips.length === 0 ? `
     <div class="panel">
-      <div class="empty"><div class="empty-icon">📡</div>Nenhuma tip cadastrada ainda.</div>
+      <div class="empty"><div class="empty-icon">📡</div>Nenhuma tip cadastrada ainda.<br>As tips chegam automaticamente via bot do Telegram.</div>
     </div>` : `
     <div class="panel">
       <div class="tbl-wrap">
@@ -722,19 +700,21 @@ async function renderAdminTips() {
           <tbody>
             ${tips.sort((a,b) => new Date(b.data) - new Date(a.data)).map(t => `
               <tr>
-                <td style="font-family:'IBM Plex Mono',monospace;font-size:.62rem">${new Date(t.data).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'})}</td>
+                <td style="font-family:'IBM Plex Mono',monospace;font-size:.62rem">
+                  ${new Date(t.data).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'})}
+                </td>
                 <td style="font-size:.7rem;max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(t.evento||'—')}</td>
                 <td style="font-size:.65rem;color:var(--muted)">${esc(t.mercado||'—')}</td>
                 <td style="font-size:.65rem">${esc(t.selecao||'—')}</td>
                 <td style="font-family:'IBM Plex Mono',monospace;color:var(--blue)">${t.odd||'—'}</td>
                 <td>
-                  ${t.resultado === 'green'
-                    ? '<span style="color:var(--green);font-family:\'IBM Plex Mono\',monospace;font-size:.65rem">● GREEN</span>'
-                    : t.resultado === 'red'
-                      ? '<span style="color:var(--red);font-family:\'IBM Plex Mono\',monospace;font-size:.65rem">● RED</span>'
+                  ${t.resultado === 'Win'   || t.resultado === 'green'
+                    ? '<span style="color:var(--green);font-family:\'IBM Plex Mono\',monospace;font-size:.65rem">● WIN</span>'
+                    : t.resultado === 'Loss' || t.resultado === 'red'
+                      ? '<span style="color:var(--red);font-family:\'IBM Plex Mono\',monospace;font-size:.65rem">● LOSS</span>'
                       : t.resultado === 'void'
                         ? '<span style="color:var(--muted);font-family:\'IBM Plex Mono\',monospace;font-size:.65rem">● VOID</span>'
-                        : '<span style="color:var(--yellow);font-family:\'IBM Plex Mono\',monospace;font-size:.65rem">⏳ PEND.</span>'}
+                        : '<span style="color:var(--yellow);font-family:\'IBM Plex Mono\',monospace;font-size:.65rem">⏳ ABERTA</span>'}
                 </td>
                 <td style="font-family:'IBM Plex Mono',monospace;color:${(t.pl_stake||0)>=0?'var(--green)':'var(--red)'}">
                   ${(t.pl_stake||0)>=0?'+':''}${(t.pl_stake||0).toFixed(2)}u
@@ -765,12 +745,9 @@ async function renderAdminTips() {
         <div class="modal-title">UPLOAD CSV DE TIPS</div>
         <div style="font-size:.72rem;color:var(--muted2);margin-bottom:1rem;line-height:1.6">
           O CSV deve ter as colunas: <strong style="color:var(--green)">data, evento, mercado, selecao, odd, resultado</strong><br>
-          Resultado: <code>green</code>, <code>red</code> ou <code>void</code>
+          Resultado: <code>Win</code>, <code>Loss</code> ou <code>void</code>
         </div>
-        <div class="field">
-          <label>Arquivo CSV</label>
-          <input type="file" id="csv-tips" accept=".csv" style="font-size:.65rem;color:var(--muted2)">
-        </div>
+        <div class="field"><label>Arquivo CSV</label><input type="file" id="csv-tips" accept=".csv" style="font-size:.65rem;color:var(--muted2)"></div>
         <div id="upload-tips-preview" style="display:none;font-family:'IBM Plex Mono',monospace;font-size:.62rem;color:var(--green);margin:.5rem 0;padding:.5rem;background:rgba(0,229,160,.06);border-radius:6px"></div>
         <button class="btn" style="width:100%;margin-top:.5rem" onclick="processarUploadTips()">📂 IMPORTAR TIPS</button>
       </div>
@@ -779,8 +756,12 @@ async function renderAdminTips() {
 }
 
 function _formTip(t = {}) {
+  const resultado = t.resultado || 'aberta';
   return `
-    <div class="field"><label>Data</label><input type="datetime-local" id="tip-data" value="${t.data ? new Date(t.data).toISOString().slice(0,16) : new Date().toISOString().slice(0,16)}"></div>
+    <div class="field"><label>Data</label>
+      <input type="datetime-local" id="tip-data"
+        value="${t.data ? new Date(t.data).toISOString().slice(0,16) : new Date().toISOString().slice(0,16)}">
+    </div>
     <div class="field-row">
       <div class="field"><label>Evento</label><input type="text" id="tip-evento" value="${esc(t.evento||'')}" placeholder="Time A vs Time B"></div>
       <div class="field"><label>Mercado</label><input type="text" id="tip-mercado" value="${esc(t.mercado||'')}" placeholder="Match Odds"></div>
@@ -793,10 +774,10 @@ function _formTip(t = {}) {
       <div class="field">
         <label>Resultado</label>
         <select id="tip-resultado">
-          <option value="pendente" ${(!t.resultado||t.resultado==='pendente')?'selected':''}>⏳ Pendente</option>
-          <option value="green"    ${t.resultado==='green'  ?'selected':''}>● Green</option>
-          <option value="red"      ${t.resultado==='red'    ?'selected':''}>● Red</option>
-          <option value="void"     ${t.resultado==='void'   ?'selected':''}>● Void</option>
+          <option value="aberta"  ${resultado==='aberta'                        ?'selected':''}>⏳ Aberta</option>
+          <option value="Win"     ${resultado==='Win'  ||resultado==='green'    ?'selected':''}>● Win</option>
+          <option value="Loss"    ${resultado==='Loss' ||resultado==='red'      ?'selected':''}>● Loss</option>
+          <option value="void"    ${resultado==='void'                          ?'selected':''}>● Void</option>
         </select>
       </div>
       <div class="field"><label>P&L por unidade</label><input type="number" id="tip-pl" value="${t.pl_stake??''}" step="0.01" placeholder="auto (odd-1 ou -1)"></div>
@@ -810,36 +791,38 @@ function abrirModalNovaTip() {
   document.getElementById('tip-modal-title').textContent = 'NOVA TIP';
   document.getElementById('tip-modal-body').innerHTML = _formTip() +
     `<button class="btn" style="width:100%;margin-top:.5rem" onclick="salvarTip(null)">💾 SALVAR TIP</button>`;
-  const m = document.getElementById('modalTip');
-  m.style.display = 'flex';
+  document.getElementById('modalTip').style.display = 'flex';
 }
 
 async function editarTip(id) {
   const tips = await getTips();
-  const t = tips.find(x => String(x.id) === String(id));
+  const t    = tips.find(x => String(x.id) === String(id));
   if (!t) return;
   document.getElementById('tip-modal-title').textContent = 'EDITAR TIP';
   document.getElementById('tip-modal-body').innerHTML = _formTip(t) +
     `<button class="btn" style="width:100%;margin-top:.5rem" onclick="salvarTip('${id}')">💾 SALVAR ALTERAÇÕES</button>`;
-  const m = document.getElementById('modalTip');
-  m.style.display = 'flex';
+  document.getElementById('modalTip').style.display = 'flex';
 }
 
 async function salvarTip(id) {
   const resultado = document.getElementById('tip-resultado').value;
   const odd       = parseFloat(document.getElementById('tip-odd').value) || 0;
   const plInput   = document.getElementById('tip-pl').value;
-  const pl        = plInput !== '' ? parseFloat(plInput) : (resultado === 'green' ? odd - 1 : resultado === 'red' ? -1 : 0);
+  const pl        = plInput !== ''
+    ? parseFloat(plInput)
+    : (resultado === 'Win' || resultado === 'green'
+        ? odd - 1
+        : (resultado === 'Loss' || resultado === 'red' ? -1 : 0));
 
   const data = {
-    data:        new Date(document.getElementById('tip-data').value).toISOString(),
-    evento:      document.getElementById('tip-evento').value.trim(),
-    mercado:     document.getElementById('tip-mercado').value.trim(),
-    selecao:     document.getElementById('tip-selecao').value.trim(),
+    data:       new Date(document.getElementById('tip-data').value).toISOString(),
+    evento:     document.getElementById('tip-evento').value.trim(),
+    mercado:    document.getElementById('tip-mercado').value.trim(),
+    selecao:    document.getElementById('tip-selecao').value.trim(),
     odd,
     resultado,
-    pl_stake:    pl,
-    observacao:  document.getElementById('tip-obs').value.trim(),
+    pl_stake:   pl,
+    observacao: document.getElementById('tip-obs').value.trim(),
   };
 
   const btn = document.querySelector('#modalTip .btn:last-of-type');
@@ -868,20 +851,9 @@ async function deletarTip(id) {
   } catch { showToast('Erro ao remover.', true); }
 }
 
-function fecharModalTip() {
-  const m = document.getElementById('modalTip');
-  if (m) m.style.display = 'none';
-}
-
-function abrirModalUploadTips() {
-  const m = document.getElementById('modalUploadTips');
-  if (m) m.style.display = 'flex';
-}
-
-function fecharModalUploadTips() {
-  const m = document.getElementById('modalUploadTips');
-  if (m) m.style.display = 'none';
-}
+function fecharModalTip()        { const m = document.getElementById('modalTip');        if (m) m.style.display = 'none'; }
+function abrirModalUploadTips()  { const m = document.getElementById('modalUploadTips'); if (m) m.style.display = 'flex'; }
+function fecharModalUploadTips() { const m = document.getElementById('modalUploadTips'); if (m) m.style.display = 'none'; }
 
 async function processarUploadTips() {
   const input = document.getElementById('csv-tips');
@@ -899,16 +871,19 @@ async function processarUploadTips() {
 
     let importadas = 0;
     for (const row of rows) {
-      const resultado = (row['resultado'] || row['Resultado'] || 'pendente').toLowerCase().trim();
+      const resultado = (row['resultado'] || row['Resultado'] || 'aberta').trim();
       const odd       = parseFloat(row['odd'] || row['Odd'] || 0);
-      const pl        = resultado === 'green' ? odd - 1 : resultado === 'red' ? -1 : 0;
+      const isWin     = resultado.toLowerCase() === 'win' || resultado.toLowerCase() === 'green';
+      const isLoss    = resultado.toLowerCase() === 'loss' || resultado.toLowerCase() === 'red';
+      const pl        = isWin ? odd - 1 : isLoss ? -1 : 0;
+
       await sb.insert('tips', {
         data:       new Date(row['data'] || row['Data'] || Date.now()).toISOString(),
-        evento:     row['evento'] || row['Evento'] || row['Nome do Evento'] || '',
+        evento:     row['evento']  || row['Evento']  || row['Nome do Evento'] || '',
         mercado:    row['mercado'] || row['Mercado'] || row['Nome do Mercado'] || '',
         selecao:    row['selecao'] || row['Seleção'] || row['selecão'] || '',
         odd,
-        resultado,
+        resultado:  isWin ? 'Win' : isLoss ? 'Loss' : resultado,
         pl_stake:   pl,
         observacao: row['observacao'] || row['Observação'] || '',
       });
@@ -928,26 +903,28 @@ async function processarUploadTips() {
   }
 }
 
-/* ── Dashboard Telegram de um cliente (visto pelo admin) ── */
-async function verDashboardTelegramCliente(clienteId, nomeCliente) {
+/* ── Dashboard Tips de um cliente (visto pelo admin) ── */
+async function verDashboardTipsCliente(clienteId, nomeCliente) {
   const [tips, tipsCliente] = await Promise.all([getTips(), getTipsCliente(clienteId)]);
-  const mapa = Object.fromEntries(tipsCliente.map(tc => [String(tc.tip_id), tc]));
+  const mapa       = Object.fromEntries(tipsCliente.map(tc => [String(tc.tip_id), tc]));
+  const encerradas = tips
+    .filter(t => t.resultado && t.resultado !== 'aberta' && t.resultado !== 'pendente')
+    .sort((a,b) => new Date(b.data) - new Date(a.data));
 
-  const tipsComDados = tips
-    .filter(t => t.resultado && t.resultado !== 'pendente')
-    .sort((a,b) => new Date(b.data) - new Date(a.data))
-    .map(t => ({ ...t, tc: mapa[String(t.id)] }));
+  const pegadas  = encerradas.filter(t => mapa[String(t.id)]?.pegou);
+  const lucro    = pegadas.reduce((s,t) => s + (mapa[String(t.id)]?.pl || 0), 0);
+  const winRate  = pegadas.length
+    ? ((pegadas.filter(t=>(mapa[String(t.id)]?.pl||0)>0).length / pegadas.length)*100).toFixed(1)
+    : 0;
+  const roiGeral = tips
+    .filter(t => t.resultado && t.resultado !== 'aberta' && t.resultado !== 'pendente')
+    .reduce((s,t) => s + (t.pl_stake||0), 0);
 
-  const pegadas   = tipsComDados.filter(t => t.tc?.pegou);
-  const lucro     = pegadas.reduce((s,t) => s + (t.tc?.pl || 0), 0);
-  const winRate   = pegadas.length ? ((pegadas.filter(t=>(t.tc?.pl||0)>0).length / pegadas.length)*100).toFixed(1) : 0;
-  const roiGeral  = tips.filter(t=>t.resultado&&t.resultado!=='pendente').reduce((s,t)=>s+(t.pl_stake||0),0);
-
-  document.getElementById('modal-title').textContent = `TELEGRAM — ${nomeCliente}`;
+  document.getElementById('modal-title').textContent = `TIPS — ${nomeCliente}`;
   document.getElementById('modal-body').innerHTML = `
     <div style="font-family:'IBM Plex Mono',monospace;font-size:.58rem;letter-spacing:2px;color:var(--muted);margin-bottom:.8rem">// DESEMPENHO DO CLIENTE</div>
     <div class="kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(110px,1fr));margin-bottom:1rem">
-      <div class="kpi g" style="padding:.6rem"><div class="kpi-label">Tips Pegas</div><div class="kpi-val g" style="font-size:1.2rem">${pegadas.length}/${tipsComDados.length}</div></div>
+      <div class="kpi g" style="padding:.6rem"><div class="kpi-label">Tips Pegas</div><div class="kpi-val g" style="font-size:1.2rem">${pegadas.length}/${encerradas.length}</div></div>
       <div class="kpi g" style="padding:.6rem"><div class="kpi-label">Lucro</div><div class="kpi-val g" style="font-size:1.2rem">${lucro>=0?'+':''}R$${lucro.toFixed(2)}</div></div>
       <div class="kpi b" style="padding:.6rem"><div class="kpi-label">Win Rate</div><div class="kpi-val b" style="font-size:1.2rem">${winRate}%</div></div>
       <div class="kpi y" style="padding:.6rem"><div class="kpi-label">ROI Canal</div><div class="kpi-val y" style="font-size:1.2rem">${roiGeral>=0?'+':''}${roiGeral.toFixed(2)}u</div></div>
@@ -957,15 +934,25 @@ async function verDashboardTelegramCliente(clienteId, nomeCliente) {
       <table>
         <thead><tr><th>Data</th><th>Evento</th><th>Odd</th><th>Resultado</th><th>Pegou?</th><th>Stake</th><th>P&L</th></tr></thead>
         <tbody>
-          ${tipsComDados.map(t => `
+          ${encerradas.map(t => `
             <tr>
               <td style="font-size:.6rem;font-family:'IBM Plex Mono',monospace">${new Date(t.data).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})}</td>
               <td style="font-size:.65rem;max-width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(t.evento||'—')}</td>
               <td style="font-family:'IBM Plex Mono',monospace;color:var(--blue)">${t.odd}</td>
-              <td style="font-size:.62rem;color:${t.resultado==='green'?'var(--green)':'var(--red)'}">${t.resultado?.toUpperCase()}</td>
-              <td style="font-size:.65rem;color:${t.tc?.pegou?'var(--green)':'var(--muted)'}">${t.tc?.pegou ? '✓ SIM' : '— NÃO'}</td>
-              <td style="font-family:'IBM Plex Mono',monospace;font-size:.65rem">${t.tc?.stake ? 'R$'+Number(t.tc.stake).toFixed(0) : '—'}</td>
-              <td style="font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:${(t.tc?.pl||0)>=0?'var(--green)':'var(--red)'}">${t.tc?.pegou ? ((t.tc.pl>=0?'+':'')+'R$'+Number(t.tc.pl).toFixed(2)) : '—'}</td>
+              <td style="font-size:.62rem;color:${(t.resultado==='Win'||t.resultado==='green')?'var(--green)':'var(--red)'}">
+                ${t.resultado?.toUpperCase()}
+              </td>
+              <td style="font-size:.65rem;color:${mapa[String(t.id)]?.pegou?'var(--green)':'var(--muted)'}">
+                ${mapa[String(t.id)]?.pegou ? '✓ SIM' : '— NÃO'}
+              </td>
+              <td style="font-family:'IBM Plex Mono',monospace;font-size:.65rem">
+                ${mapa[String(t.id)]?.stake ? 'R$'+Number(mapa[String(t.id)].stake).toFixed(0) : '—'}
+              </td>
+              <td style="font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:${(mapa[String(t.id)]?.pl||0)>=0?'var(--green)':'var(--red)'}">
+                ${mapa[String(t.id)]?.pegou
+                  ? ((mapa[String(t.id)].pl>=0?'+':'')+'R$'+Number(mapa[String(t.id)].pl).toFixed(2))
+                  : '—'}
+              </td>
             </tr>`).join('')}
         </tbody>
       </table>
@@ -987,6 +974,12 @@ function renderAdminConfig() {
       <div class="info-row"><span class="info-label">WhatsApp Admin</span><span class="info-val">+${esc(CONFIG.WPP_ADMIN)}</span></div>
       <div class="info-row"><span class="info-label">Valor Bot</span><span class="info-val">R$ ${CONFIG.VALOR_BOT}</span></div>
       <div class="info-row"><span class="info-label">Supabase</span><span class="info-val" style="color:var(--green)">● Conectado</span></div>
+    </div>
+    <div class="panel" style="max-width:500px;margin-top:1rem">
+      <div class="panel-title">Bot Telegram</div>
+      <div class="info-row"><span class="info-label">Worker URL</span><span class="info-val" style="font-size:.6rem">https://intellect-bot.intellectcopytrading.workers.dev/</span></div>
+      <div class="info-row"><span class="info-label">Status</span><span class="info-val" style="color:var(--green)">● Webhook Ativo</span></div>
+      <div class="info-row"><span class="info-label">Plano Tips</span><span class="info-val" style="color:var(--blue)">Tips automáticas via app</span></div>
     </div>
   `;
 }
