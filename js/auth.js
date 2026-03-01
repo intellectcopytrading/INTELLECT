@@ -2,6 +2,7 @@
    js/auth.js — Login, Register, Logout, Admin Auth
 ════════════════════════════════════════════════ */
 
+/* ── NAVEGAÇÃO DE TELAS DE AUTH ── */
 function showLogin()     { show('screenLogin'); }
 function showRegister()  { show('screenRegister'); }
 function showAdminLogin(){
@@ -9,6 +10,7 @@ function showAdminLogin(){
   setTimeout(() => document.getElementById('admin-pwd').focus(), 100);
 }
 
+/* ── ADMIN HIDDEN TRIGGER (7 cliques no canto superior esquerdo) ── */
 function adminClick() {
   State.adminClicks++;
   clearTimeout(State.adminTimer);
@@ -19,6 +21,7 @@ function adminClick() {
   }
 }
 
+/* ── LOGIN CLIENTE ── */
 async function doLogin() {
   const email = document.getElementById('login-email').value.trim().toLowerCase();
   const senha = document.getElementById('login-senha').value;
@@ -40,14 +43,14 @@ async function doLogin() {
     if (!rows?.length) {
       errEl.textContent = 'Email não encontrado. Verifique ou crie uma conta.';
       errEl.classList.add('show');
-      return;
+      return; // finally ainda executa — botão é resetado corretamente
     }
 
     const clientRow = rows.find(c => c.senha === senha);
     if (!clientRow) {
       errEl.textContent = 'Senha incorreta.';
       errEl.classList.add('show');
-      return;
+      return; // finally ainda executa
     }
 
     const hist = await sb.get('historico', { cliente_id: clientRow.id }).catch(() => []);
@@ -71,6 +74,7 @@ async function doLogin() {
   }
 }
 
+/* ── CADASTRO CLIENTE ── */
 async function doRegister() {
   const email  = document.getElementById('reg-email').value.trim().toLowerCase();
   const senha  = document.getElementById('reg-senha').value;
@@ -95,7 +99,8 @@ async function doRegister() {
     const inserted = await sb.insert('clientes', {
       email, senha,
       nome: '', whats: '', plano: '', banca: 0,
-      bf_login: '', bf_senha: '', status: 'Pendente', bot_ativo: false,
+      bf_login: '', bf_senha: '', status: 'Pendente',
+      bot_ativo: false, bot_e1: false, bot_e2: false, bot_e3: false,
       roi: 0, lucro: 0, ops: 0,
       vencimento: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
     });
@@ -126,6 +131,7 @@ async function doRegister() {
   }
 }
 
+/* ── LOGIN ADMIN ── */
 async function doAdminLogin() {
   const pwd   = document.getElementById('admin-pwd').value;
   const errEl = document.getElementById('admin-err');
@@ -133,6 +139,7 @@ async function doAdminLogin() {
 
   errEl.classList.remove('show');
 
+  // Compara hash SHA-256 — senha nunca fica em texto plano no código
   const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pwd));
   const hashHex    = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
 
@@ -155,6 +162,7 @@ async function doAdminLogin() {
   }
 }
 
+/* ── LOGOUT ── */
 async function doLogout() {
   State.clearRealtime();
   State.client = null;
@@ -164,6 +172,7 @@ async function doLogout() {
   document.getElementById('login-senha').value = '';
 }
 
+/* ── HELPERS ── */
 function redirectToPlanoIfNeeded() {
   const planoUrl = new URLSearchParams(window.location.search).get('plano');
   if (planoUrl) {
@@ -190,13 +199,14 @@ function requestNotificationPermission() {
   }
 }
 
+/* ── REALTIME (polling) ── */
 function startRealtime(clientId) {
   State.clearRealtime();
   State.realtimeTimer = setInterval(async () => {
     try {
       if (!State.client || State.client.id !== clientId) return;
       const rows = await sb.get('clientes', { id: clientId });
-      if (!State.client || State.client.id !== clientId) return;
+      if (!State.client || State.client.id !== clientId) return; // verificação pós-await
       if (!rows?.[0]) return;
 
       const upd = mapClient(rows[0]);
@@ -216,6 +226,7 @@ function startRealtime(clientId) {
   }, CONFIG.REALTIME_INTERVAL_MS);
 }
 
+/* ── INICIALIZAÇÃO ── */
 (async function init() {
   const session = Session.get();
   if (!session || Session.isExpired(session)) {
