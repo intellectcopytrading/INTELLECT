@@ -58,6 +58,11 @@ const sb = (() => {
         method: 'DELETE',
       });
     },
+    deleteWhere(table, filters = {}) {
+      let url = `${CONFIG.SUPABASE_URL}/rest/v1/${table}?`;
+      url += Object.entries(filters).map(([k,v]) => `${k}=eq.${encodeURIComponent(v)}`).join('&');
+      return request(url, { method: 'DELETE' });
+    },
   };
 })();
 
@@ -107,6 +112,16 @@ function mapClient(r) {
     cadastro:  r.cadastro  || new Date().toISOString(),
     historico: [],
   };
+}
+
+/** Busca todas as tips */
+async function getTips() {
+  try { return await sb.get('tips'); } catch { return []; }
+}
+
+/** Busca registros de tips de um cliente específico */
+async function getTipsCliente(clienteId) {
+  try { return await sb.get('tips_clientes', { cliente_id: clienteId }); } catch { return []; }
 }
 
 /** Calcula vencimento com base no plano */
