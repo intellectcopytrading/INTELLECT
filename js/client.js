@@ -2,6 +2,7 @@
    js/client.js — Dashboard e abas do cliente
 ════════════════════════════════════════════════ */
 
+/* ── NAVEGAÇÃO ── */
 function loadClientDashboard(client) {
   State.client = client;
   const nameEl = document.getElementById('topbar-name');
@@ -14,6 +15,7 @@ function clientTab(tab, el) {
   if (!el) return;
   document.querySelectorAll('#appClient .nav-item').forEach(n => n.classList.remove('active'));
   el.classList.add('active');
+  // Sincroniza mobile nav
   document.querySelectorAll('#mobileNav .mobile-nav-item[data-tab]').forEach(n => {
     n.classList.toggle('active', n.dataset.tab === tab);
   });
@@ -23,6 +25,7 @@ function clientTab(tab, el) {
 function clientTabMobile(tab, el) {
   document.querySelectorAll('#mobileNav .mobile-nav-item').forEach(n => n.classList.remove('active'));
   el.classList.add('active');
+  // Sincroniza sidebar
   document.querySelectorAll('#appClient .nav-item[data-tab]').forEach(n => {
     n.classList.toggle('active', n.dataset.tab === tab);
   });
@@ -40,6 +43,7 @@ function _renderTab(tab) {
   map[tab]?.();
 }
 
+/* ── DASHBOARD ── */
 function renderClientDashboard() {
   const c = State.client;
   const vc = new Date(c.vencimento);
@@ -174,6 +178,7 @@ function _gerarHistoricoDemo(c) {
   });
 }
 
+/* ── OPERAÇÕES ── */
 function renderClientOps() {
   const c = State.client;
   const tableRows = c.historico.map(h => `
@@ -203,34 +208,83 @@ function renderClientOps() {
   `;
 }
 
+/* ── ESTRATÉGIAS ── */
 function renderClientEstrategias() {
   const c = State.client;
-  const temAcesso = c.plano && (c.plano.includes('Anual') || c.plano.includes('Bot'));
+  const temPlanoBot = c.plano && (c.plano.includes('Anual') || c.plano.includes('Bot'));
 
-  const cards = ESTRATEGIAS.map(e => `
-    <div class="panel" style="border-color:${temAcesso && c.botAtivo ? 'var(--green)' : 'var(--border)'}">
-      <div style="font-size:2rem;margin-bottom:.6rem">${e.icone}</div>
-      <div style="font-family:'IBM Plex Mono',monospace;font-size:.58rem;letter-spacing:2px;color:var(--muted);margin-bottom:.3rem">${esc(e.mercado)}</div>
-      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:2px;margin-bottom:.5rem">${esc(e.nome)}</div>
-      <div style="font-size:.78rem;color:var(--muted2);margin-bottom:1rem;line-height:1.6">${esc(e.desc)}</div>
-      ${temAcesso
-        ? `<span class="badge ${c.botAtivo ? 'active-badge' : 'pending-badge'}">
-             <span class="badge-dot ${c.botAtivo ? 'pulse' : ''}"></span>
-             ${c.botAtivo ? 'ATIVO' : 'AGUARDANDO CONFIG.'}
-           </span>`
-        : `<button class="btn btn-sm"
-             onclick="clientTab('planos', document.querySelector('#appClient .nav-item[data-tab=\\'planos\\']'))">
-             CONTRATAR →
-           </button>`}
-    </div>`).join('');
+  const cards = ESTRATEGIAS.map(e => {
+    const botAtivo  = c['botE' + e.id] || false; // bot_e1, bot_e2, bot_e3
+    const temAcesso = temPlanoBot && botAtivo;
+    const contratou = temPlanoBot && !botAtivo;   // pagou plano mas bot não ativado ainda
+    const bloqueado = !temPlanoBot;               // não tem plano
+
+    let borderColor = 'var(--border)';
+    if (temAcesso)  borderColor = 'var(--green)';
+    if (contratou)  borderColor = 'var(--yellow)';
+
+    // Badge de status
+    let statusHtml = '';
+    if (temAcesso) {
+      statusHtml = `<span class="badge active-badge"><span class="badge-dot pulse"></span>BOT ATIVO</span>`;
+    } else if (contratou) {
+      statusHtml = `<span class="badge pending-badge"><span class="badge-dot"></span>AGUARDANDO CONFIG.</span>`;
+    }
+
+    // Resultados demo (visíveis para todos, bloqueados com cadeado)
+    const roiDemo  = ['+12.4%', '+8.7%', '+15.2%'][e.id - 1];
+    const opsDemo  = [247, 189, 312][e.id - 1];
+    const winDemo  = ['71%', '68%', '74%'][e.id - 1];
+
+    return `
+      <div class="panel" style="border-color:${borderColor};position:relative;${bloqueado ? 'opacity:.85' : ''}">
+
+        ${bloqueado ? `
+        <div style="position:absolute;inset:0;background:rgba(6,9,16,.55);border-radius:12px;
+                    display:flex;flex-direction:column;align-items:center;justify-content:center;
+                    z-index:2;backdrop-filter:blur(2px)">
+          <div style="font-size:2rem;margin-bottom:.5rem">🔒</div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--muted2);text-align:center;margin-bottom:.8rem;padding:0 1rem">
+            Adquira este bot para ativar
+          </div>
+          <button class="btn btn-sm"
+            onclick="clientTab('planos', document.querySelector('#appClient .nav-item[data-tab=\\'planos\\']'))">
+            CONTRATAR →
+          </button>
+        </div>` : ''}
+
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.6rem">
+          <div style="font-size:2rem">${e.icone}</div>
+          ${statusHtml}
+        </div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:.58rem;letter-spacing:2px;color:var(--muted);margin-bottom:.3rem">${esc(e.mercado)}</div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:2px;margin-bottom:.5rem">${esc(e.nome)}</div>
+        <div style="font-size:.78rem;color:var(--muted2);margin-bottom:1rem;line-height:1.6">${esc(e.desc)}</div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.4rem">
+          <div style="background:var(--s2);border-radius:8px;padding:.4rem .5rem;text-align:center">
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:.48rem;color:var(--muted)">ROI MÊS</div>
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:.9rem;color:var(--green)">${roiDemo}</div>
+          </div>
+          <div style="background:var(--s2);border-radius:8px;padding:.4rem .5rem;text-align:center">
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:.48rem;color:var(--muted)">OPERAÇÕES</div>
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:.9rem;color:var(--blue)">${opsDemo}</div>
+          </div>
+          <div style="background:var(--s2);border-radius:8px;padding:.4rem .5rem;text-align:center">
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:.48rem;color:var(--muted)">WIN RATE</div>
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:.9rem;color:var(--yellow)">${winDemo}</div>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
 
   document.getElementById('clientMain').innerHTML = `
     <div style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:2px">ESTRATÉGIAS</div>
     <p style="font-size:.8rem;color:var(--muted2);margin-bottom:1rem">Bots automatizados operando 24/7 na sua conta Betfair.</p>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1rem">${cards}</div>
-    ${!temAcesso ? `
+    ${!temPlanoBot ? `
     <div style="background:rgba(255,194,51,.06);border:1px solid rgba(255,194,51,.15);border-radius:10px;padding:1rem 1.2rem;font-family:'IBM Plex Mono',monospace;font-size:.68rem;color:var(--yellow)">
-      ⚡ Você precisa de um plano Bot ou Anual para ativar as estratégias.
+      ⚡ Adquira um bot ou plano Anual para ativar as estratégias individualmente.
       <span style="color:var(--green);cursor:pointer;text-decoration:underline"
             onclick="clientTab('planos', document.querySelector('#appClient .nav-item[data-tab=\\'planos\\']'))">
         Ver planos →
@@ -239,6 +293,7 @@ function renderClientEstrategias() {
   `;
 }
 
+/* ── MINHA CONTA ── */
 function renderClientConta() {
   const c = State.client;
   const isTelegram = c.plano?.includes('Telegram');
@@ -344,6 +399,7 @@ async function saveProfile() {
   }
 }
 
+/* ── PLANOS ── */
 function renderClientPlanos() {
   const c = State.client;
   const planoAtual = c.plano || '';
@@ -415,6 +471,7 @@ function renderClientPlanos() {
   `;
 }
 
+/* ── MODAL PAGAMENTO ── */
 function abrirModalPlano(nomePlano, valor, descricao) {
   document.getElementById('modal-plano-title').textContent = 'ASSINAR — ' + nomePlano.toUpperCase();
   document.getElementById('modal-plano-body').innerHTML = `
