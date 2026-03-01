@@ -16,12 +16,13 @@ const sb = (() => {
     const { headers: extraHeaders, ...restOptions } = options;
     const res = await fetch(url, {
       ...restOptions,
-      headers: { ...headers(), ...(extraHeaders || {}) },
+      headers: { ...headers(), ...(extraHeaders || {}) }, // padrão primeiro, extras por cima
     });
     if (!res.ok) {
       const msg = await res.text();
       throw new Error(msg);
     }
+    // DELETE retorna 204 sem body
     if (res.status === 204) return true;
     return res.json();
   }
@@ -79,6 +80,7 @@ const Session = (() => {
 
 /* ── DATA HELPERS ── */
 
+/** Mapeia snake_case do Supabase → camelCase do app */
 function mapClient(r) {
   return {
     id:        r.id,
@@ -92,16 +94,22 @@ function mapClient(r) {
     bfSenha:   r.bf_senha  || '',
     status:    r.status    || 'Pendente',
     botAtivo:  r.bot_ativo || false,
+    botE1:     r.bot_e1   || false,
+    botE2:     r.bot_e2   || false,
+    botE3:     r.bot_e3   || false,
     roi:       r.roi       || 0,
     lucro:     r.lucro     || 0,
     ops:       r.ops       || 0,
-    vencimento:r.vencimento|| new Date().toISOString(),
+    vencimento:r.vencimento && !isNaN(new Date(r.vencimento))
+               ? r.vencimento
+               : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
     nota:      r.nota      || '',
     cadastro:  r.cadastro  || new Date().toISOString(),
     historico: [],
   };
 }
 
+/** Calcula vencimento com base no plano */
 function calcVencimento(plano) {
   const d = new Date();
   if (plano.includes('Anual')) d.setFullYear(d.getFullYear() + 1);
@@ -109,6 +117,7 @@ function calcVencimento(plano) {
   return d.toISOString();
 }
 
+/** Busca todos os clientes */
 async function getClients() {
   try { return await sb.get('clientes'); } catch { return []; }
 }
