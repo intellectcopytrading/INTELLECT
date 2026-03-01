@@ -16,15 +16,16 @@ const CONFIG = Object.freeze({
 
   // Hash SHA-256 da senha admin (gerado fora do código).
   // Para trocar a senha: calcule sha256 da nova senha e atualize apenas este hash.
-  ADMIN_PWD_HASH: 'ba354a8f6f7c7604676078d482fdc5bfb519201824383ab756ff9623ff436c39',
+  // Ex: await crypto.subtle.digest('SHA-256', new TextEncoder().encode('suaSenha'))
+  ADMIN_PWD_HASH: 'ba354a8f6f7c7604676078d482fdc5bfb519201824383ab756ff9623ff436c39', // sha256 da senha admin
 
   PIX_KEY:   '07bc03ad-72bf-41f1-bf4f-585bcbd2324e',
   WPP_ADMIN: '5597991637163',
   VALOR_BOT: 117,
 
-  SESSION_TTL: 8 * 60 * 60 * 1000,
+  SESSION_TTL: 8 * 60 * 60 * 1000, // 8 horas em ms
   SESSION_KEY: 'ict_session',
-  REALTIME_INTERVAL_MS: 60_000,
+  REALTIME_INTERVAL_MS: 60_000,    // polling a cada 60s
 });
 
 const PLANOS = Object.freeze([
