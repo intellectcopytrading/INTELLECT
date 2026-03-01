@@ -8,12 +8,12 @@ function loadClientDashboard(client) {
   const nameEl = document.getElementById('topbar-name');
   if (nameEl) nameEl.textContent = client.nome ? client.nome.split(' ')[0] : client.email.split('@')[0];
 
-  // Mostra menu Tips apenas para clientes Telegram
-  const isTelegram = client.plano?.includes('Telegram');
+  // Mostra menu Tips para clientes com acesso (Tips, Bot, Anual)
+  const isTips = clienteTemTips(client.plano);
   const navTips = document.getElementById('nav-tips');
   const mobileNavTips = document.getElementById('mobile-nav-tips');
-  if (navTips)       navTips.style.display       = isTelegram ? '' : 'none';
-  if (mobileNavTips) mobileNavTips.style.display = isTelegram ? '' : 'none';
+  if (navTips)       navTips.style.display       = isTips ? '' : 'none';
+  if (mobileNavTips) mobileNavTips.style.display = isTips ? '' : 'none';
 
   show('appClient');
   renderClientDashboard();
@@ -23,7 +23,6 @@ function clientTab(tab, el) {
   if (!el) return;
   document.querySelectorAll('#appClient .nav-item').forEach(n => n.classList.remove('active'));
   el.classList.add('active');
-  // Sincroniza mobile nav
   document.querySelectorAll('#mobileNav .mobile-nav-item[data-tab]').forEach(n => {
     n.classList.toggle('active', n.dataset.tab === tab);
   });
@@ -33,7 +32,6 @@ function clientTab(tab, el) {
 function clientTabMobile(tab, el) {
   document.querySelectorAll('#mobileNav .mobile-nav-item').forEach(n => n.classList.remove('active'));
   el.classList.add('active');
-  // Sincroniza sidebar
   document.querySelectorAll('#appClient .nav-item[data-tab]').forEach(n => {
     n.classList.toggle('active', n.dataset.tab === tab);
   });
@@ -57,7 +55,6 @@ async function renderClientDashboard() {
   const c = State.client;
   const main = document.getElementById('clientMain');
 
-  // Busca relatórios do bot
   let relatorios = [];
   try { relatorios = await sb.get('bot_relatorios', { cliente_id: c.id }); } catch {}
   State.relatorios = relatorios || [];
@@ -65,14 +62,12 @@ async function renderClientDashboard() {
   const vc = new Date(c.vencimento);
   const diasRestantes = Math.max(0, Math.round((vc - Date.now()) / 86_400_000));
 
-  // KPIs consolidados de todos os relatórios
   const todasOps   = State.relatorios.flatMap(r => r.operacoes || []);
   const lucroTotal = todasOps.reduce((s, o) => s + (o.netPl || 0), 0);
   const totalOps   = todasOps.length;
   const greens     = todasOps.filter(o => o.resultado === 'green').length;
   const winRate    = totalOps ? ((greens / totalOps) * 100).toFixed(1) : 0;
 
-  // Usa dados do relatório se disponível, senão usa dados manuais
   const roiExib   = State.relatorios.length
     ? (State.relatorios[0].estatisticas?.['ROI'] || c.roi + '%')
     : (c.roi + '%');
@@ -85,10 +80,9 @@ async function renderClientDashboard() {
       ? `<span class="badge pending-badge"><span class="badge-dot"></span>AGUARDANDO CONFIG.</span>`
       : `<span class="badge inactive-badge"><span class="badge-dot"></span>BOT INATIVO</span>`;
 
-  const isTel = c.plano?.includes('Telegram');
-  const incompleto = !c.nome || !c.whats || !c.plano || (!isTel && !c.bfLogin);
+  const isTips = clienteTemTips(c.plano);
+  const incompleto = !c.nome || !c.whats || !c.plano || (!clienteTemTips(c.plano) && !c.bfLogin);
 
-  // Gráfico: evolução da banca via operações reais ou demo
   const bancaInicial = parseFloat(State.relatorios[0]?.estatisticas?.['Banca'] || c.banca || 1000);
   let histGrafico;
   if (todasOps.length > 1) {
@@ -251,8 +245,6 @@ function renderClientOps() {
   const todasOps   = relatorios.flatMap(r =>
     (r.operacoes || []).map(op => ({ ...op, nomeBot: r.nome_bot }))
   );
-
-  // Fallback para operações manuais antigas
   const opsLegado = State.client.historico || [];
 
   if (!todasOps.length && !opsLegado.length) {
@@ -264,7 +256,6 @@ function renderClientOps() {
     return;
   }
 
-  // Tabs por bot se houver múltiplos relatórios
   const bots = [...new Set(todasOps.map(o => o.nomeBot).filter(Boolean))];
 
   const tableRows = (todasOps.length ? todasOps : opsLegado).map(op => {
@@ -325,16 +316,15 @@ function renderClientEstrategias() {
   const temPlanoBot = c.plano && (c.plano.includes('Anual') || c.plano.includes('Bot'));
 
   const cards = ESTRATEGIAS.map(e => {
-    const botAtivo  = c['botE' + e.id] || false; // bot_e1, bot_e2, bot_e3
+    const botAtivo  = c['botE' + e.id] || false;
     const temAcesso = temPlanoBot && botAtivo;
-    const contratou = temPlanoBot && !botAtivo;   // pagou plano mas bot não ativado ainda
-    const bloqueado = !temPlanoBot;               // não tem plano
+    const contratou = temPlanoBot && !botAtivo;
+    const bloqueado = !temPlanoBot;
 
     let borderColor = 'var(--border)';
     if (temAcesso)  borderColor = 'var(--green)';
     if (contratou)  borderColor = 'var(--yellow)';
 
-    // Badge de status
     let statusHtml = '';
     if (temAcesso) {
       statusHtml = `<span class="badge active-badge"><span class="badge-dot pulse"></span>BOT ATIVO</span>`;
@@ -342,14 +332,12 @@ function renderClientEstrategias() {
       statusHtml = `<span class="badge pending-badge"><span class="badge-dot"></span>AGUARDANDO CONFIG.</span>`;
     }
 
-    // Resultados demo (visíveis para todos, bloqueados com cadeado)
     const roiDemo  = ['+12.4%', '+8.7%', '+15.2%'][e.id - 1];
     const opsDemo  = [247, 189, 312][e.id - 1];
     const winDemo  = ['71%', '68%', '74%'][e.id - 1];
 
     return `
       <div class="panel" style="border-color:${borderColor};position:relative;${bloqueado ? 'opacity:.85' : ''}">
-
         ${bloqueado ? `
         <div style="position:absolute;inset:0;background:rgba(6,9,16,.55);border-radius:12px;
                     display:flex;flex-direction:column;align-items:center;justify-content:center;
@@ -363,7 +351,6 @@ function renderClientEstrategias() {
             CONTRATAR →
           </button>
         </div>` : ''}
-
         <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.6rem">
           <div style="font-size:2rem">${e.icone}</div>
           ${statusHtml}
@@ -371,7 +358,6 @@ function renderClientEstrategias() {
         <div style="font-family:'IBM Plex Mono',monospace;font-size:.58rem;letter-spacing:2px;color:var(--muted);margin-bottom:.3rem">${esc(e.mercado)}</div>
         <div style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:2px;margin-bottom:.5rem">${esc(e.nome)}</div>
         <div style="font-size:.78rem;color:var(--muted2);margin-bottom:1rem;line-height:1.6">${esc(e.desc)}</div>
-
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.4rem">
           <div style="background:var(--s2);border-radius:8px;padding:.4rem .5rem;text-align:center">
             <div style="font-family:'IBM Plex Mono',monospace;font-size:.48rem;color:var(--muted)">ROI MÊS</div>
@@ -407,8 +393,8 @@ function renderClientEstrategias() {
 /* ── MINHA CONTA ── */
 function renderClientConta() {
   const c = State.client;
-  const isTelegram = c.plano?.includes('Telegram');
-  const incompleto = !c.nome || !c.whats || !c.plano || (!isTelegram && !c.bfLogin);
+  const isTips = clienteTemTips(c.plano);
+  const incompleto = !c.nome || !c.whats || !c.plano || (!clienteTemTips(c.plano) && !c.bfLogin);
 
   document.getElementById('clientMain').innerHTML = `
     <div style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:2px">MINHA CONTA</div>
@@ -429,12 +415,12 @@ function renderClientConta() {
           ${buildPlanosOptions(c.plano)}
         </select>
       </div>
-      <div id="p-banca-wrap" ${isTelegram ? 'style="display:none"' : ''}>
+      <div id="p-banca-wrap" ${isTips ? 'style="display:none"' : ''}>
         <div class="field"><label>Banca Inicial na Betfair (R$)</label><input type="number" id="p-banca" value="${c.banca || ''}" placeholder="Ex: 5000"></div>
       </div>
     </div>
 
-    <div id="p-betfair-wrap" class="panel" style="max-width:540px${isTelegram ? ';display:none' : ''}">
+    <div id="p-betfair-wrap" class="panel" style="max-width:540px${isTips ? ';display:none' : ''}">
       <div class="panel-title">🔑 Acesso Betfair</div>
       <div class="sec-notice">🔒 Seus dados são acessados apenas pela nossa equipe para configurar os bots.</div>
       <div class="field"><label>Login / Email Betfair</label><input type="email" id="p-bfl" value="${esc(c.bfLogin)}" placeholder="email@betfair.com"></div>
@@ -456,28 +442,28 @@ function renderClientConta() {
 }
 
 function toggleBetfairCliente() {
-  const isTelegram = document.getElementById('p-plano').value.includes('Telegram');
-  document.getElementById('p-banca-wrap').style.display   = isTelegram ? 'none' : '';
-  document.getElementById('p-betfair-wrap').style.display = isTelegram ? 'none' : '';
+  const isTips = clienteTemTips(document.getElementById('p-plano').value);
+  document.getElementById('p-banca-wrap').style.display   = isTips ? 'none' : '';
+  document.getElementById('p-betfair-wrap').style.display = isTips ? 'none' : '';
 }
 
 async function saveProfile() {
   const nome      = document.getElementById('p-nome').value.trim();
   const whats     = document.getElementById('p-whats').value.trim();
   const plano     = document.getElementById('p-plano').value;
-  const isTelegram= plano.includes('Telegram');
-  const banca     = isTelegram ? 0 : parseFloat(document.getElementById('p-banca').value);
-  const bfLogin   = isTelegram ? '' : document.getElementById('p-bfl').value.trim();
-  const bfSenha   = isTelegram ? '' : document.getElementById('p-bfs').value;
+  const isTips    = plano.includes('Tips') || plano.includes('Telegram');
+  const banca     = isTips ? 0 : parseFloat(document.getElementById('p-banca').value);
+  const bfLogin   = isTips ? '' : document.getElementById('p-bfl').value.trim();
+  const bfSenha   = isTips ? '' : document.getElementById('p-bfs').value;
   const newSenha  = document.getElementById('p-newsenha').value;
   const errEl     = document.getElementById('p-err');
   errEl.classList.remove('show');
 
   const validations = [
-    [!nome || !whats || !plano,                      'Preencha todos os campos obrigatórios.'],
-    [!isTelegram && (isNaN(banca) || !bfLogin || !bfSenha), 'Preencha banca e dados da Betfair.'],
-    [!isTelegram && banca < 0,                       'Banca não pode ser negativa.'],
-    [newSenha && newSenha.length < 6,                'Nova senha mínima de 6 caracteres.'],
+    [!nome || !whats || !plano,                           'Preencha todos os campos obrigatórios.'],
+    [!isTips && (isNaN(banca) || !bfLogin || !bfSenha),  'Preencha banca e dados da Betfair.'],
+    [!isTips && banca < 0,                                'Banca não pode ser negativa.'],
+    [newSenha && newSenha.length < 6,                     'Nova senha mínima de 6 caracteres.'],
   ];
   for (const [cond, msg] of validations) {
     if (cond) { errEl.textContent = msg; errEl.classList.add('show'); return; }
@@ -518,33 +504,27 @@ async function renderClientTips() {
 
   const [tips, tipsCliente] = await Promise.all([getTips(), getTipsCliente(c.id)]);
 
-  // Mapa: tip_id → registro do cliente
   const mapa = Object.fromEntries(tipsCliente.map(tc => [String(tc.tip_id), tc]));
 
-  // Separa pendentes e encerradas
-  const encerradas = tips.filter(t => t.resultado && t.resultado !== 'pendente')
+  const encerradas = tips.filter(t => t.resultado && t.resultado !== 'aberta' && t.resultado !== 'pendente')
                          .sort((a,b) => new Date(b.data) - new Date(a.data));
-  const pendentes  = tips.filter(t => !t.resultado || t.resultado === 'pendente')
+  const pendentes  = tips.filter(t => !t.resultado || t.resultado === 'aberta' || t.resultado === 'pendente')
                          .sort((a,b) => new Date(b.data) - new Date(a.data));
 
-  // KPIs do cliente
-  const pegadas     = encerradas.filter(t => mapa[String(t.id)]?.pegou);
-  const lucroCliente= pegadas.reduce((s,t) => s + (mapa[String(t.id)]?.pl || 0), 0);
-  const greensC     = pegadas.filter(t => (mapa[String(t.id)]?.pl || 0) > 0).length;
-  const winRateC    = pegadas.length ? ((greensC / pegadas.length)*100).toFixed(1) : 0;
+  const pegadas      = encerradas.filter(t => mapa[String(t.id)]?.pegou);
+  const lucroCliente = pegadas.reduce((s,t) => s + (mapa[String(t.id)]?.pl || 0), 0);
+  const greensC      = pegadas.filter(t => (mapa[String(t.id)]?.pl || 0) > 0).length;
+  const winRateC     = pegadas.length ? ((greensC / pegadas.length)*100).toFixed(1) : 0;
 
-  // KPIs do canal (todas as tips)
-  const roiCanal    = encerradas.reduce((s,t) => s + (t.pl_stake||0), 0);
-  const winRateCanal= encerradas.length ? ((encerradas.filter(t=>t.pl_stake>0).length / encerradas.length)*100).toFixed(1) : 0;
+  const roiCanal     = encerradas.reduce((s,t) => s + (t.pl_stake||0), 0);
+  const winRateCanal = encerradas.length ? ((encerradas.filter(t=>t.pl_stake>0).length / encerradas.length)*100).toFixed(1) : 0;
 
-  // Banca padrão salva localmente
   const bancaPadrao = parseFloat(localStorage.getItem(`ict_banca_padrao_${c.id}`) || '0');
 
   main.innerHTML = `
-    <div style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:2px">TIPS TELEGRAM</div>
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:2px">TIPS</div>
     <p style="font-size:.78rem;color:var(--muted2);margin-bottom:.5rem">Marque as tips que você pegou e acompanhe seu resultado pessoal.</p>
 
-    <!-- Banca padrão -->
     <div class="panel" style="padding:.8rem 1rem;margin-bottom:.5rem">
       <div style="display:flex;align-items:center;gap:.8rem;flex-wrap:wrap">
         <div style="font-family:'IBM Plex Mono',monospace;font-size:.62rem;color:var(--muted)">STAKE PADRÃO (R$):</div>
@@ -557,9 +537,7 @@ async function renderClientTips() {
       </div>
     </div>
 
-    <!-- KPIs comparativo -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:.8rem;margin-bottom:1rem">
-      <!-- Meu resultado -->
       <div class="panel" style="border-color:var(--green2)">
         <div style="font-family:'IBM Plex Mono',monospace;font-size:.55rem;letter-spacing:2px;color:var(--green);margin-bottom:.6rem">// MEU RESULTADO</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:.4rem">
@@ -583,7 +561,6 @@ async function renderClientTips() {
           </div>
         </div>
       </div>
-      <!-- Resultado do canal -->
       <div class="panel" style="border-color:var(--border)">
         <div style="font-family:'IBM Plex Mono',monospace;font-size:.55rem;letter-spacing:2px;color:var(--muted);margin-bottom:.6rem">// RESULTADO DO CANAL</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:.4rem">
@@ -609,7 +586,6 @@ async function renderClientTips() {
       </div>
     </div>
 
-    <!-- Tips pendentes -->
     ${pendentes.length ? `
     <div style="font-family:'IBM Plex Mono',monospace;font-size:.6rem;letter-spacing:2px;color:var(--yellow);margin-bottom:.5rem">
       // TIPS ABERTAS (${pendentes.length})
@@ -618,33 +594,33 @@ async function renderClientTips() {
       ${pendentes.map(t => _cardTipCliente(t, mapa[String(t.id)], bancaPadrao)).join('')}
     </div>` : ''}
 
-    <!-- Tips encerradas -->
     <div style="font-family:'IBM Plex Mono',monospace;font-size:.6rem;letter-spacing:2px;color:var(--muted);margin-bottom:.5rem">
       // TIPS ENCERRADAS (${encerradas.length})
     </div>
     <div style="display:flex;flex-direction:column;gap:.5rem">
-      ${encerradas.map(t => _cardTipCliente(t, mapa[String(t.id)], bancaPadrao)).join('')}
+      ${encerradas.length ? encerradas.map(t => _cardTipCliente(t, mapa[String(t.id)], bancaPadrao)).join('') : '<div class="panel"><div class="empty">Nenhuma tip encerrada ainda.</div></div>'}
     </div>
   `;
 }
 
 function _cardTipCliente(t, tc, bancaPadrao) {
-  const encerrada  = t.resultado && t.resultado !== 'pendente';
+  const encerrada  = t.resultado && t.resultado !== 'aberta' && t.resultado !== 'pendente';
   const pegou      = tc?.pegou || false;
   const stakeVal   = tc?.stake ?? bancaPadrao ?? '';
   const plVal      = tc?.pl ?? 0;
-  const resCorC    = t.resultado === 'green' ? 'var(--green)' : t.resultado === 'red' ? 'var(--red)' : 'var(--muted)';
+  const isWin      = t.resultado === 'Win' || t.resultado === 'green';
+  const resCorC    = isWin ? 'var(--green)' : (encerrada ? 'var(--red)' : 'var(--muted)');
 
   return `
     <div class="panel" style="border-color:${pegou ? (encerrada ? (plVal>=0?'var(--green)':'var(--red)') : 'var(--yellow)') : 'var(--border)'};padding:.8rem 1rem">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:.5rem;flex-wrap:wrap">
         <div style="flex:1;min-width:0">
           <div style="font-family:'IBM Plex Mono',monospace;font-size:.58rem;color:var(--muted);margin-bottom:.2rem">
-            ${new Date(t.data).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'})} · ${esc(t.mercado||'—')}
+            ${t.data ? new Date(t.data).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'}) : '—'} · ${esc(t.mercado||'—')}
           </div>
           <div style="font-size:.82rem;font-weight:600;margin-bottom:.2rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(t.evento||'—')}</div>
           <div style="font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--muted2)">
-            ${esc(t.selecao||'—')} &nbsp;·&nbsp; <span style="color:var(--blue)">Odd ${t.odd}</span>
+            ${esc(t.selecao||'—')} &nbsp;·&nbsp; <span style="color:var(--blue)">Odd ${t.odd||'—'}</span>
             ${encerrada ? `&nbsp;·&nbsp; <span style="color:${resCorC};font-weight:600">${t.resultado.toUpperCase()}</span>` : '&nbsp;·&nbsp; <span style="color:var(--yellow)">⏳ ABERTA</span>'}
           </div>
         </div>
@@ -659,7 +635,7 @@ function _cardTipCliente(t, tc, bancaPadrao) {
             <span style="font-family:'IBM Plex Mono',monospace;font-size:.58rem;color:var(--muted)">R$</span>
             <input type="number" id="stake-${t.id}" value="${stakeVal}" placeholder="${bancaPadrao||'stake'}"
               style="width:70px;background:var(--s2);border:1px solid var(--border2);border-radius:4px;padding:.2rem .4rem;font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--fg);text-align:right"
-              onchange="atualizarStakeTip('${t.id}', this.value, '${t.resultado||'pendente'}', ${t.odd||0}, ${t.pl_stake||0})">
+              onchange="atualizarStakeTip('${t.id}', this.value, '${t.resultado||'aberta'}', ${t.odd||0}, ${t.pl_stake||0})">
           </div>
           ${pegou && encerrada ? `
           <div style="font-family:'Bebas Neue',sans-serif;font-size:1rem;color:${plVal>=0?'var(--green)':'var(--red)'}">
@@ -681,13 +657,11 @@ async function toggleTipCliente(tipId, pegou, bancaPadrao) {
   const stakeEl = document.getElementById(`stake-${tipId}`);
   const stake   = parseFloat(stakeEl?.value || bancaPadrao || 0);
 
-  // Busca resultado da tip para calcular pl
   const tips = await getTips();
   const tip  = tips.find(t => String(t.id) === String(tipId));
   const pl   = pegou && tip ? stake * (tip.pl_stake || 0) : 0;
 
   try {
-    // Verifica se já existe registro
     const existentes = await sb.get('tips_clientes', { cliente_id: c.id, tip_id: tipId }).catch(()=>[]);
     if (existentes?.length) {
       await sb.update('tips_clientes', existentes[0].id, { pegou, stake, pl });
@@ -695,7 +669,6 @@ async function toggleTipCliente(tipId, pegou, bancaPadrao) {
       await sb.insert('tips_clientes', { cliente_id: c.id, tip_id: tipId, pegou, stake, pl });
     }
     showToast(pegou ? '✓ Tip marcada!' : 'Tip desmarcada.');
-    // Recarrega para atualizar KPIs
     setTimeout(() => renderClientTips(), 400);
   } catch { showToast('Erro ao salvar.', true); }
 }
@@ -757,11 +730,11 @@ function renderClientPlanos() {
       <p style="font-size:.8rem;color:var(--muted2);margin-bottom:2rem">Taxa de performance cobrada <strong style="color:var(--green)">apenas quando houver lucro</strong>.</p>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1.2rem">
         ${planCard({
-          ativo: planoAtual.includes('Telegram'),
+          ativo: planoAtual.includes('Tips') || planoAtual.includes('Telegram'),
           border: 'var(--border)', borderAtivo: 'var(--green)', shadowAtivo: 'box-shadow:0 0 20px rgba(0,229,160,.15)',
-          tag: 'SINAIS', nome: 'PLANO TELEGRAM', preco: 'R$ 97', periodo: '/mês', cor: 'var(--green)', sub: 'sem taxa de performance',
-          items: ['Sinais diários no grupo privado','Todas as estratégias validadas','Execute manualmente ou automatize','Ideal para conhecer o método'],
-          _nomeModal: 'Plano Telegram', _valor: 97, _desc: 'Acesso ao grupo privado com sinais diários.',
+          tag: 'SINAIS', nome: 'PLANO TIPS', preco: 'R$ 97', periodo: '/mês', cor: 'var(--green)', sub: 'sem taxa de performance',
+          items: ['Sinais diários no app','Todas as estratégias validadas','Execute manualmente','Ideal para conhecer o método'],
+          _nomeModal: 'Plano Tips', _valor: 97, _desc: 'Acesso ao app com sinais diários.',
           btnLabel: 'ASSINAR AGORA →',
         })}
         ${planCard({
