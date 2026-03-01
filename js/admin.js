@@ -16,6 +16,7 @@ function adminTab(tab, el) {
     clientes:    renderAdminClientes,
     novo:        renderAdminNovoCliente,
     estrategias: renderAdminEstrategias,
+    tips:        renderAdminTips,
     config:      renderAdminConfig,
   };
   map[tab]?.();
@@ -184,6 +185,7 @@ async function renderAdminClientes() {
         <td>${pagCol}</td>
         <td style="font-family:'IBM Plex Mono',monospace;font-size:.65rem">${esc(botsCol)}</td>
         <td style="font-family:'IBM Plex Mono',monospace">${esc(c.whats) || '—'}</td>
+        <td>${c.plano?.includes('Telegram') ? `<button class="btn btn-sm" style="font-size:.6rem;padding:.2rem .5rem" onclick="event.stopPropagation();verDashboardTelegramCliente('${esc(String(c.id))}','${esc(c.nome||c.email)}')">📊 Dashboard</button>` : ''}</td>
       </tr>`;
   }).join('');
 
@@ -197,7 +199,7 @@ async function renderAdminClientes() {
     <div class="panel">
       <div class="tbl-wrap">
         <table>
-          <thead><tr><th>Email</th><th>Nome</th><th>Plano</th><th>Status</th><th>ROI</th><th>Pgto</th><th>Bots</th><th>WhatsApp</th></tr></thead>
+          <thead><tr><th>Email</th><th>Nome</th><th>Plano</th><th>Status</th><th>ROI</th><th>Pgto</th><th>Bots</th><th>WhatsApp</th><th></th></tr></thead>
           <tbody>${rows}</tbody>
         </table>
       </div>
@@ -312,6 +314,30 @@ async function abrirModalCliente(id) {
     <div class="err" id="m-err"></div>
     <button class="btn" onclick="salvarClienteAdmin('${esc(String(c.id))}')">💾 SALVAR ALTERAÇÕES</button>
     <button class="btn btn-danger" style="margin-top:.5rem" onclick="excluirCliente('${esc(String(c.id))}')">🗑 EXCLUIR CLIENTE</button>
+
+    <!-- UPLOAD RELATÓRIO DO BOT -->
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:.58rem;letter-spacing:2px;color:var(--muted);margin:1.2rem 0 .6rem">// UPLOAD RELATÓRIO DO BOT</div>
+    <div style="background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:.8rem 1rem;margin-bottom:1rem">
+      <div style="font-size:.72rem;color:var(--muted2);margin-bottom:.8rem;line-height:1.6">
+        Selecione os CSVs exportados do bot. O sistema processa e atualiza o dashboard do cliente automaticamente.
+      </div>
+      <div class="field">
+        <label>CSV de Estatísticas <span style="color:var(--muted)">(*estatisticas*)</span></label>
+        <input type="file" id="csv-estat" accept=".csv" style="font-size:.65rem;color:var(--muted2)">
+      </div>
+      <div class="field">
+        <label>CSV de Operações <span style="color:var(--muted)">(*operacoes*)</span></label>
+        <input type="file" id="csv-ops" accept=".csv" style="font-size:.65rem;color:var(--muted2)">
+      </div>
+      <div class="field">
+        <label>CSV de Ordens <span style="color:var(--muted)">(*ordens* — opcional)</span></label>
+        <input type="file" id="csv-ordens" accept=".csv" style="font-size:.65rem;color:var(--muted2)">
+      </div>
+      <div id="csv-preview" style="display:none;font-family:'IBM Plex Mono',monospace;font-size:.62rem;color:var(--green);margin:.5rem 0;padding:.5rem;background:rgba(0,229,160,.06);border-radius:6px"></div>
+      <button class="btn btn-sm" style="width:100%;margin-top:.3rem" onclick="processarRelatorioBot('${esc(String(c.id))}')">
+        📊 PROCESSAR E SALVAR RELATÓRIO
+      </button>
+    </div>
 
     <!-- OPERAÇÕES -->
     <div style="font-family:'IBM Plex Mono',monospace;font-size:.58rem;letter-spacing:2px;color:var(--muted);margin:1.2rem 0 .6rem">// ADICIONAR OPERAÇÃO</div>
@@ -447,6 +473,136 @@ async function excluirCliente(id) {
   } catch { showToast('Erro ao excluir.', true); }
 }
 
+/* ════════════════════════════════════════════════
+   UPLOAD E PROCESSAMENTO DE RELATÓRIO DO BOT
+════════════════════════════════════════════════ */
+
+function _parseCSV(text) {
+  const lines = text.trim().split('\n').map(l => l.replace(/\r/g, ''));
+  if (!lines.length) return [];
+  const headers = lines[0].split(',').map(h => h.trim());
+  return lines.slice(1).map(line => {
+    // trata campos com vírgula dentro de aspas
+    const cols = [];
+    let cur = '', inQ = false;
+    for (const ch of line) {
+      if (ch === '"') { inQ = !inQ; }
+      else if (ch === ',' && !inQ) { cols.push(cur.trim()); cur = ''; }
+      else cur += ch;
+    }
+    cols.push(cur.trim());
+    const obj = {};
+    headers.forEach((h, i) => { obj[h] = cols[i] ?? ''; });
+    return obj;
+  });
+}
+
+async function _lerCSV(inputId) {
+  return new Promise((resolve) => {
+    const input = document.getElementById(inputId);
+    if (!input?.files?.length) { resolve([]); return; }
+    const reader = new FileReader();
+    reader.onload = e => resolve(_parseCSV(e.target.result));
+    reader.readAsText(input.files[0], 'UTF-8');
+  });
+}
+
+async function processarRelatorioBot(clienteId) {
+  const btn = document.querySelector('#modal-body .btn-sm:last-of-type');
+  if (btn) { btn.textContent = '⏳ PROCESSANDO...'; btn.disabled = true; }
+  const preview = document.getElementById('csv-preview');
+
+  try {
+    const [estat, ops, ordens] = await Promise.all([
+      _lerCSV('csv-estat'),
+      _lerCSV('csv-ops'),
+      _lerCSV('csv-ordens'),
+    ]);
+
+    if (!estat.length && !ops.length) {
+      showToast('Selecione pelo menos os CSVs de estatísticas e operações.', true);
+      return;
+    }
+
+    // Processa estatísticas → objeto chave/valor
+    const estatObj = {};
+    estat.forEach(row => {
+      const chave = (row['Métrica'] || row['metrica'] || '').trim();
+      const valor = (row['Valor'] || row['valor'] || '').trim();
+      if (chave) estatObj[chave] = valor;
+    });
+
+    // Extrai nome do bot (do ops ou ordens)
+    const nomeBot = ops[0]?.['Nome do Bot'] || ordens[0]?.['Nome do Bot'] || 'Bot';
+
+    // Processa operações → array limpo
+    const operacoesLimpas = ops.map(op => ({
+      data:        op['Data da Aposta'] || '',
+      evento:      op['Nome do Evento'] || '',
+      mercado:     op['Nome do Mercado'] || '',
+      competicao:  op['Nome da Competição'] || '',
+      pl:          parseFloat(op['PL']) || 0,
+      netPl:       parseFloat(op['netPl']) || 0,
+      stake:       parseFloat(op['stake']) || 0,
+      banca:       parseFloat(op['Banca do Bot']) || 0,
+      placar:      `${op['Placar Final Casa'] ?? ''} x ${op['Placar Final Visitante'] ?? ''}`,
+      resultado:   parseFloat(op['PL']) >= 0 ? 'green' : 'red',
+    })).sort((a, b) => new Date(a.data) - new Date(b.data));
+
+    // Calcula KPIs a partir das operações (fallback se estatísticas vazias)
+    const lucroTotal    = operacoesLimpas.reduce((s, o) => s + o.netPl, 0);
+    const greens        = operacoesLimpas.filter(o => o.resultado === 'green').length;
+    const totalOps      = operacoesLimpas.length;
+    const winRate       = totalOps ? ((greens / totalOps) * 100).toFixed(1) + '%' : '0%';
+    const bancaInicial  = parseFloat(estatObj['Banca'] || operacoesLimpas[0]?.banca || 0);
+    const roi           = estatObj['ROI'] || (bancaInicial ? ((lucroTotal / bancaInicial) * 100).toFixed(2) + '%' : '0%');
+
+    // Monta objeto final
+    const estatFinal = {
+      'Taxa de Acerto': estatObj['Taxa de Acerto'] || winRate,
+      'ROI':            roi,
+      'Yield':          estatObj['Yield'] || '—',
+      'Max Drawdown':   estatObj['Max Drawdown'] || '—',
+      'Lucro Total':    estatObj['Lucro Total'] || lucroTotal.toFixed(2),
+      'Greens':         estatObj['Quantidade de Greens'] || greens,
+      'Reds':           estatObj['Quantidade de Reds'] || (totalOps - greens),
+      'Banca':          estatObj['Banca'] || bancaInicial,
+      'Total Operações':totalOps,
+    };
+
+    // Salva no Supabase — substitui relatório anterior do mesmo bot
+    await sb.deleteWhere('bot_relatorios', { cliente_id: clienteId, nome_bot: nomeBot }).catch(() => {});
+    await sb.insert('bot_relatorios', {
+      cliente_id:   clienteId,
+      nome_bot:     nomeBot,
+      estatisticas: estatFinal,
+      operacoes:    operacoesLimpas,
+    });
+
+    // Atualiza também os campos principais do cliente
+    const roiNum = parseFloat(roi) || 0;
+    await sb.update('clientes', clienteId, {
+      roi:   roiNum,
+      lucro: lucroTotal,
+      ops:   totalOps,
+    });
+
+    // Preview
+    if (preview) {
+      preview.style.display = 'block';
+      preview.innerHTML = `✓ Processado! ${totalOps} operações · ROI ${roi} · Win Rate ${estatFinal['Taxa de Acerto']} · Lucro R$${lucroTotal.toFixed(2)}`;
+    }
+
+    showToast(`✓ Relatório de ${nomeBot} salvo com sucesso!`);
+
+  } catch (e) {
+    console.error('[processarRelatorioBot]', e);
+    showToast('Erro ao processar CSV. Verifique os arquivos.', true);
+  } finally {
+    if (btn) { btn.textContent = '📊 PROCESSAR E SALVAR RELATÓRIO'; btn.disabled = false; }
+  }
+}
+
 function closeModal() {
   document.getElementById('modalCliente').classList.remove('open');
 }
@@ -525,6 +681,292 @@ function renderAdminEstrategias() {
         </div>`).join('')}
     </div>
   `;
+}
+
+/* ════════════════════════════════════════════════
+   TIPS — PAINEL ADMIN
+════════════════════════════════════════════════ */
+async function renderAdminTips() {
+  const main = document.getElementById('adminMain');
+  main.innerHTML = '<div class="empty"><div class="empty-icon">⏳</div>Carregando...</div>';
+
+  const tips = await getTips();
+
+  main.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.5rem;margin-bottom:1rem">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:2px">
+        TIPS TELEGRAM <span style="font-size:1rem;color:var(--muted)">(${tips.length})</span>
+      </div>
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+        <button class="btn btn-sm" onclick="abrirModalNovaTip()">✏️ NOVA TIP</button>
+        <button class="btn btn-sm" onclick="abrirModalUploadTips()">📂 UPLOAD CSV</button>
+      </div>
+    </div>
+
+    ${tips.length === 0 ? `
+    <div class="panel">
+      <div class="empty"><div class="empty-icon">📡</div>Nenhuma tip cadastrada ainda.</div>
+    </div>` : `
+    <div class="panel">
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr><th>Data</th><th>Evento</th><th>Mercado</th><th>Seleção</th><th>Odd</th><th>Resultado</th><th>P&L/unit</th><th></th></tr>
+          </thead>
+          <tbody>
+            ${tips.sort((a,b) => new Date(b.data) - new Date(a.data)).map(t => `
+              <tr>
+                <td style="font-family:'IBM Plex Mono',monospace;font-size:.62rem">${new Date(t.data).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'})}</td>
+                <td style="font-size:.7rem;max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(t.evento||'—')}</td>
+                <td style="font-size:.65rem;color:var(--muted)">${esc(t.mercado||'—')}</td>
+                <td style="font-size:.65rem">${esc(t.selecao||'—')}</td>
+                <td style="font-family:'IBM Plex Mono',monospace;color:var(--blue)">${t.odd||'—'}</td>
+                <td>
+                  ${t.resultado === 'green'
+                    ? '<span style="color:var(--green);font-family:\'IBM Plex Mono\',monospace;font-size:.65rem">● GREEN</span>'
+                    : t.resultado === 'red'
+                      ? '<span style="color:var(--red);font-family:\'IBM Plex Mono\',monospace;font-size:.65rem">● RED</span>'
+                      : t.resultado === 'void'
+                        ? '<span style="color:var(--muted);font-family:\'IBM Plex Mono\',monospace;font-size:.65rem">● VOID</span>'
+                        : '<span style="color:var(--yellow);font-family:\'IBM Plex Mono\',monospace;font-size:.65rem">⏳ PEND.</span>'}
+                </td>
+                <td style="font-family:'IBM Plex Mono',monospace;color:${(t.pl_stake||0)>=0?'var(--green)':'var(--red)'}">
+                  ${(t.pl_stake||0)>=0?'+':''}${(t.pl_stake||0).toFixed(2)}u
+                </td>
+                <td>
+                  <button class="btn btn-sm" style="padding:.2rem .5rem;font-size:.6rem" onclick="editarTip('${t.id}')">✏️</button>
+                  <button class="btn btn-sm btn-danger" style="padding:.2rem .5rem;font-size:.6rem;margin-left:.2rem" onclick="deletarTip('${t.id}')">✕</button>
+                </td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>`}
+
+    <!-- Modal Nova/Editar Tip -->
+    <div class="modal-overlay" id="modalTip" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1000;align-items:center;justify-content:center">
+      <div class="modal" style="position:relative;max-width:480px;width:100%">
+        <button class="modal-close" onclick="fecharModalTip()">✕</button>
+        <div class="modal-title" id="tip-modal-title">NOVA TIP</div>
+        <div id="tip-modal-body"></div>
+      </div>
+    </div>
+
+    <!-- Modal Upload CSV -->
+    <div class="modal-overlay" id="modalUploadTips" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1000;align-items:center;justify-content:center">
+      <div class="modal" style="position:relative;max-width:460px;width:100%">
+        <button class="modal-close" onclick="fecharModalUploadTips()">✕</button>
+        <div class="modal-title">UPLOAD CSV DE TIPS</div>
+        <div style="font-size:.72rem;color:var(--muted2);margin-bottom:1rem;line-height:1.6">
+          O CSV deve ter as colunas: <strong style="color:var(--green)">data, evento, mercado, selecao, odd, resultado</strong><br>
+          Resultado: <code>green</code>, <code>red</code> ou <code>void</code>
+        </div>
+        <div class="field">
+          <label>Arquivo CSV</label>
+          <input type="file" id="csv-tips" accept=".csv" style="font-size:.65rem;color:var(--muted2)">
+        </div>
+        <div id="upload-tips-preview" style="display:none;font-family:'IBM Plex Mono',monospace;font-size:.62rem;color:var(--green);margin:.5rem 0;padding:.5rem;background:rgba(0,229,160,.06);border-radius:6px"></div>
+        <button class="btn" style="width:100%;margin-top:.5rem" onclick="processarUploadTips()">📂 IMPORTAR TIPS</button>
+      </div>
+    </div>
+  `;
+}
+
+function _formTip(t = {}) {
+  return `
+    <div class="field"><label>Data</label><input type="datetime-local" id="tip-data" value="${t.data ? new Date(t.data).toISOString().slice(0,16) : new Date().toISOString().slice(0,16)}"></div>
+    <div class="field-row">
+      <div class="field"><label>Evento</label><input type="text" id="tip-evento" value="${esc(t.evento||'')}" placeholder="Time A vs Time B"></div>
+      <div class="field"><label>Mercado</label><input type="text" id="tip-mercado" value="${esc(t.mercado||'')}" placeholder="Match Odds"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Seleção</label><input type="text" id="tip-selecao" value="${esc(t.selecao||'')}" placeholder="Back Casa"></div>
+      <div class="field"><label>Odd</label><input type="number" id="tip-odd" value="${t.odd||''}" step="0.01" placeholder="1.85"></div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Resultado</label>
+        <select id="tip-resultado">
+          <option value="pendente" ${(!t.resultado||t.resultado==='pendente')?'selected':''}>⏳ Pendente</option>
+          <option value="green"    ${t.resultado==='green'  ?'selected':''}>● Green</option>
+          <option value="red"      ${t.resultado==='red'    ?'selected':''}>● Red</option>
+          <option value="void"     ${t.resultado==='void'   ?'selected':''}>● Void</option>
+        </select>
+      </div>
+      <div class="field"><label>P&L por unidade</label><input type="number" id="tip-pl" value="${t.pl_stake??''}" step="0.01" placeholder="auto (odd-1 ou -1)"></div>
+    </div>
+    <div class="field"><label>Observação</label><input type="text" id="tip-obs" value="${esc(t.observacao||'')}" placeholder="Opcional..."></div>
+    <div class="err" id="tip-err"></div>
+  `;
+}
+
+function abrirModalNovaTip() {
+  document.getElementById('tip-modal-title').textContent = 'NOVA TIP';
+  document.getElementById('tip-modal-body').innerHTML = _formTip() +
+    `<button class="btn" style="width:100%;margin-top:.5rem" onclick="salvarTip(null)">💾 SALVAR TIP</button>`;
+  const m = document.getElementById('modalTip');
+  m.style.display = 'flex';
+}
+
+async function editarTip(id) {
+  const tips = await getTips();
+  const t = tips.find(x => String(x.id) === String(id));
+  if (!t) return;
+  document.getElementById('tip-modal-title').textContent = 'EDITAR TIP';
+  document.getElementById('tip-modal-body').innerHTML = _formTip(t) +
+    `<button class="btn" style="width:100%;margin-top:.5rem" onclick="salvarTip('${id}')">💾 SALVAR ALTERAÇÕES</button>`;
+  const m = document.getElementById('modalTip');
+  m.style.display = 'flex';
+}
+
+async function salvarTip(id) {
+  const resultado = document.getElementById('tip-resultado').value;
+  const odd       = parseFloat(document.getElementById('tip-odd').value) || 0;
+  const plInput   = document.getElementById('tip-pl').value;
+  const pl        = plInput !== '' ? parseFloat(plInput) : (resultado === 'green' ? odd - 1 : resultado === 'red' ? -1 : 0);
+
+  const data = {
+    data:        new Date(document.getElementById('tip-data').value).toISOString(),
+    evento:      document.getElementById('tip-evento').value.trim(),
+    mercado:     document.getElementById('tip-mercado').value.trim(),
+    selecao:     document.getElementById('tip-selecao').value.trim(),
+    odd,
+    resultado,
+    pl_stake:    pl,
+    observacao:  document.getElementById('tip-obs').value.trim(),
+  };
+
+  const btn = document.querySelector('#modalTip .btn:last-of-type');
+  if (btn) { btn.textContent = 'SALVANDO...'; btn.disabled = true; }
+
+  try {
+    if (id) await sb.update('tips', id, data);
+    else    await sb.insert('tips', data);
+    showToast('✓ Tip salva!');
+    fecharModalTip();
+    renderAdminTips();
+  } catch {
+    const e = document.getElementById('tip-err');
+    if (e) { e.textContent = 'Erro ao salvar.'; e.classList.add('show'); }
+  } finally {
+    if (btn) { btn.textContent = '💾 SALVAR'; btn.disabled = false; }
+  }
+}
+
+async function deletarTip(id) {
+  if (!confirm('Remover esta tip? Isso remove também os registros dos clientes.')) return;
+  try {
+    await sb.delete('tips', id);
+    showToast('Tip removida.');
+    renderAdminTips();
+  } catch { showToast('Erro ao remover.', true); }
+}
+
+function fecharModalTip() {
+  const m = document.getElementById('modalTip');
+  if (m) m.style.display = 'none';
+}
+
+function abrirModalUploadTips() {
+  const m = document.getElementById('modalUploadTips');
+  if (m) m.style.display = 'flex';
+}
+
+function fecharModalUploadTips() {
+  const m = document.getElementById('modalUploadTips');
+  if (m) m.style.display = 'none';
+}
+
+async function processarUploadTips() {
+  const input = document.getElementById('csv-tips');
+  if (!input?.files?.length) { showToast('Selecione um arquivo CSV.', true); return; }
+
+  const btn = document.querySelector('#modalUploadTips .btn:last-of-type');
+  if (btn) { btn.textContent = '⏳ IMPORTANDO...'; btn.disabled = true; }
+
+  try {
+    const rows = await new Promise(res => {
+      const r = new FileReader();
+      r.onload = e => res(_parseCSV(e.target.result));
+      r.readAsText(input.files[0], 'UTF-8');
+    });
+
+    let importadas = 0;
+    for (const row of rows) {
+      const resultado = (row['resultado'] || row['Resultado'] || 'pendente').toLowerCase().trim();
+      const odd       = parseFloat(row['odd'] || row['Odd'] || 0);
+      const pl        = resultado === 'green' ? odd - 1 : resultado === 'red' ? -1 : 0;
+      await sb.insert('tips', {
+        data:       new Date(row['data'] || row['Data'] || Date.now()).toISOString(),
+        evento:     row['evento'] || row['Evento'] || row['Nome do Evento'] || '',
+        mercado:    row['mercado'] || row['Mercado'] || row['Nome do Mercado'] || '',
+        selecao:    row['selecao'] || row['Seleção'] || row['selecão'] || '',
+        odd,
+        resultado,
+        pl_stake:   pl,
+        observacao: row['observacao'] || row['Observação'] || '',
+      });
+      importadas++;
+    }
+
+    const prev = document.getElementById('upload-tips-preview');
+    if (prev) { prev.style.display = 'block'; prev.textContent = `✓ ${importadas} tips importadas!`; }
+    showToast(`✓ ${importadas} tips importadas!`);
+    fecharModalUploadTips();
+    renderAdminTips();
+  } catch(e) {
+    console.error(e);
+    showToast('Erro ao importar CSV.', true);
+  } finally {
+    if (btn) { btn.textContent = '📂 IMPORTAR TIPS'; btn.disabled = false; }
+  }
+}
+
+/* ── Dashboard Telegram de um cliente (visto pelo admin) ── */
+async function verDashboardTelegramCliente(clienteId, nomeCliente) {
+  const [tips, tipsCliente] = await Promise.all([getTips(), getTipsCliente(clienteId)]);
+  const mapa = Object.fromEntries(tipsCliente.map(tc => [String(tc.tip_id), tc]));
+
+  const tipsComDados = tips
+    .filter(t => t.resultado && t.resultado !== 'pendente')
+    .sort((a,b) => new Date(b.data) - new Date(a.data))
+    .map(t => ({ ...t, tc: mapa[String(t.id)] }));
+
+  const pegadas   = tipsComDados.filter(t => t.tc?.pegou);
+  const lucro     = pegadas.reduce((s,t) => s + (t.tc?.pl || 0), 0);
+  const winRate   = pegadas.length ? ((pegadas.filter(t=>(t.tc?.pl||0)>0).length / pegadas.length)*100).toFixed(1) : 0;
+  const roiGeral  = tips.filter(t=>t.resultado&&t.resultado!=='pendente').reduce((s,t)=>s+(t.pl_stake||0),0);
+
+  document.getElementById('modal-title').textContent = `TELEGRAM — ${nomeCliente}`;
+  document.getElementById('modal-body').innerHTML = `
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:.58rem;letter-spacing:2px;color:var(--muted);margin-bottom:.8rem">// DESEMPENHO DO CLIENTE</div>
+    <div class="kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(110px,1fr));margin-bottom:1rem">
+      <div class="kpi g" style="padding:.6rem"><div class="kpi-label">Tips Pegas</div><div class="kpi-val g" style="font-size:1.2rem">${pegadas.length}/${tipsComDados.length}</div></div>
+      <div class="kpi g" style="padding:.6rem"><div class="kpi-label">Lucro</div><div class="kpi-val g" style="font-size:1.2rem">${lucro>=0?'+':''}R$${lucro.toFixed(2)}</div></div>
+      <div class="kpi b" style="padding:.6rem"><div class="kpi-label">Win Rate</div><div class="kpi-val b" style="font-size:1.2rem">${winRate}%</div></div>
+      <div class="kpi y" style="padding:.6rem"><div class="kpi-label">ROI Canal</div><div class="kpi-val y" style="font-size:1.2rem">${roiGeral>=0?'+':''}${roiGeral.toFixed(2)}u</div></div>
+    </div>
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:.58rem;letter-spacing:2px;color:var(--muted);margin-bottom:.6rem">// TODAS AS TIPS</div>
+    <div class="tbl-wrap" style="max-height:300px;overflow-y:auto">
+      <table>
+        <thead><tr><th>Data</th><th>Evento</th><th>Odd</th><th>Resultado</th><th>Pegou?</th><th>Stake</th><th>P&L</th></tr></thead>
+        <tbody>
+          ${tipsComDados.map(t => `
+            <tr>
+              <td style="font-size:.6rem;font-family:'IBM Plex Mono',monospace">${new Date(t.data).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})}</td>
+              <td style="font-size:.65rem;max-width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(t.evento||'—')}</td>
+              <td style="font-family:'IBM Plex Mono',monospace;color:var(--blue)">${t.odd}</td>
+              <td style="font-size:.62rem;color:${t.resultado==='green'?'var(--green)':'var(--red)'}">${t.resultado?.toUpperCase()}</td>
+              <td style="font-size:.65rem;color:${t.tc?.pegou?'var(--green)':'var(--muted)'}">${t.tc?.pegou ? '✓ SIM' : '— NÃO'}</td>
+              <td style="font-family:'IBM Plex Mono',monospace;font-size:.65rem">${t.tc?.stake ? 'R$'+Number(t.tc.stake).toFixed(0) : '—'}</td>
+              <td style="font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:${(t.tc?.pl||0)>=0?'var(--green)':'var(--red)'}">${t.tc?.pegou ? ((t.tc.pl>=0?'+':'')+'R$'+Number(t.tc.pl).toFixed(2)) : '—'}</td>
+            </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
+    <button class="btn btn-ghost" style="margin-top:1rem;width:100%" onclick="closeModal()">FECHAR</button>
+  `;
+  document.getElementById('modalCliente').classList.add('open');
 }
 
 /* ════════════════════════════════════════════════
