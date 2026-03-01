@@ -7,6 +7,14 @@ function loadClientDashboard(client) {
   State.client = client;
   const nameEl = document.getElementById('topbar-name');
   if (nameEl) nameEl.textContent = client.nome ? client.nome.split(' ')[0] : client.email.split('@')[0];
+
+  // Mostra menu Tips apenas para clientes Telegram
+  const isTelegram = client.plano?.includes('Telegram');
+  const navTips = document.getElementById('nav-tips');
+  const mobileNavTips = document.getElementById('mobile-nav-tips');
+  if (navTips)       navTips.style.display       = isTelegram ? '' : 'none';
+  if (mobileNavTips) mobileNavTips.style.display = isTelegram ? '' : 'none';
+
   show('appClient');
   renderClientDashboard();
 }
@@ -39,15 +47,37 @@ function _renderTab(tab) {
     operacoes:   renderClientOps,
     conta:       renderClientConta,
     planos:      renderClientPlanos,
+    tips:        renderClientTips,
   };
   map[tab]?.();
 }
 
 /* ── DASHBOARD ── */
-function renderClientDashboard() {
+async function renderClientDashboard() {
   const c = State.client;
+  const main = document.getElementById('clientMain');
+
+  // Busca relatórios do bot
+  let relatorios = [];
+  try { relatorios = await sb.get('bot_relatorios', { cliente_id: c.id }); } catch {}
+  State.relatorios = relatorios || [];
+
   const vc = new Date(c.vencimento);
   const diasRestantes = Math.max(0, Math.round((vc - Date.now()) / 86_400_000));
+
+  // KPIs consolidados de todos os relatórios
+  const todasOps   = State.relatorios.flatMap(r => r.operacoes || []);
+  const lucroTotal = todasOps.reduce((s, o) => s + (o.netPl || 0), 0);
+  const totalOps   = todasOps.length;
+  const greens     = todasOps.filter(o => o.resultado === 'green').length;
+  const winRate    = totalOps ? ((greens / totalOps) * 100).toFixed(1) : 0;
+
+  // Usa dados do relatório se disponível, senão usa dados manuais
+  const roiExib   = State.relatorios.length
+    ? (State.relatorios[0].estatisticas?.['ROI'] || c.roi + '%')
+    : (c.roi + '%');
+  const lucroExib = State.relatorios.length ? lucroTotal : c.lucro;
+  const opsExib   = State.relatorios.length ? totalOps   : c.ops;
 
   const statusBadge = c.botAtivo
     ? `<span class="badge active-badge"><span class="badge-dot pulse"></span>BOT ATIVO</span>`
@@ -55,11 +85,26 @@ function renderClientDashboard() {
       ? `<span class="badge pending-badge"><span class="badge-dot"></span>AGUARDANDO CONFIG.</span>`
       : `<span class="badge inactive-badge"><span class="badge-dot"></span>BOT INATIVO</span>`;
 
-  const hist = c.historico.length > 0 ? c.historico : _gerarHistoricoDemo(c);
   const isTel = c.plano?.includes('Telegram');
   const incompleto = !c.nome || !c.whats || !c.plano || (!isTel && !c.bfLogin);
 
-  document.getElementById('clientMain').innerHTML = `
+  // Gráfico: evolução da banca via operações reais ou demo
+  const bancaInicial = parseFloat(State.relatorios[0]?.estatisticas?.['Banca'] || c.banca || 1000);
+  let histGrafico;
+  if (todasOps.length > 1) {
+    let bancaAcum = bancaInicial;
+    histGrafico = todasOps.map(op => {
+      bancaAcum += (op.netPl || 0);
+      return {
+        data:  new Date(op.data).toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit' }),
+        banca: parseFloat(bancaAcum.toFixed(2)),
+      };
+    });
+  } else {
+    histGrafico = _gerarHistoricoDemo(c);
+  }
+
+  main.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.5rem">
       <div>
         <div style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:2px">MEU DASHBOARD</div>
@@ -80,18 +125,18 @@ function renderClientDashboard() {
     <div class="kpi-grid">
       <div class="kpi g">
         <div class="kpi-label">ROI no Período</div>
-        <div class="kpi-val g">${c.roi >= 0 ? '+' : ''}${c.roi.toFixed(1)}%</div>
+        <div class="kpi-val g">${roiExib.startsWith('+') || roiExib.startsWith('-') ? '' : (parseFloat(roiExib) >= 0 ? '+' : '')}${roiExib}</div>
         <div class="kpi-sub">desde o início</div>
       </div>
       <div class="kpi g">
         <div class="kpi-label">Lucro em R$</div>
-        <div class="kpi-val g">${c.lucro >= 0 ? '+' : ''}R$${c.lucro.toFixed(0)}</div>
-        <div class="kpi-sub">banca inicial: R$${Number(c.banca).toLocaleString('pt-BR')}</div>
+        <div class="kpi-val g">${lucroExib >= 0 ? '+' : ''}R$${Number(lucroExib).toFixed(0)}</div>
+        <div class="kpi-sub">banca inicial: R$${Number(bancaInicial).toLocaleString('pt-BR')}</div>
       </div>
       <div class="kpi b">
         <div class="kpi-label">Operações</div>
-        <div class="kpi-val b">${c.ops}</div>
-        <div class="kpi-sub">registradas no período</div>
+        <div class="kpi-val b">${opsExib}</div>
+        <div class="kpi-sub">${totalOps ? `${greens} greens · ${totalOps - greens} reds` : 'registradas'}</div>
       </div>
       <div class="kpi ${diasRestantes <= 7 ? 'r' : 'y'}">
         <div class="kpi-label">Vencimento do Plano</div>
@@ -99,6 +144,27 @@ function renderClientDashboard() {
         <div class="kpi-sub">${vc.toLocaleDateString('pt-BR')}</div>
       </div>
     </div>
+
+    ${totalOps > 0 ? `
+    <div class="kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(120px,1fr))">
+      <div class="kpi g" style="padding:.6rem .8rem">
+        <div class="kpi-label">Win Rate</div>
+        <div class="kpi-val g" style="font-size:1.3rem">${winRate}%</div>
+      </div>
+      <div class="kpi g" style="padding:.6rem .8rem">
+        <div class="kpi-label">Greens</div>
+        <div class="kpi-val g" style="font-size:1.3rem">${greens}</div>
+      </div>
+      <div class="kpi r" style="padding:.6rem .8rem">
+        <div class="kpi-label">Reds</div>
+        <div class="kpi-val r" style="font-size:1.3rem">${totalOps - greens}</div>
+      </div>
+      ${State.relatorios[0]?.estatisticas?.['Max Drawdown'] ? `
+      <div class="kpi y" style="padding:.6rem .8rem">
+        <div class="kpi-label">Max Drawdown</div>
+        <div class="kpi-val y" style="font-size:1.3rem">${State.relatorios[0].estatisticas['Max Drawdown']}</div>
+      </div>` : ''}
+    </div>` : ''}
 
     <div class="panels-row">
       <div class="panel">
@@ -109,10 +175,11 @@ function renderClientDashboard() {
         <div class="panel-title">Resumo da Conta</div>
         <div class="info-row"><span class="info-label">Plano</span><span class="info-val">${esc(c.plano ? c.plano.split(' ·')[0] : '—')}</span></div>
         <div class="info-row"><span class="info-label">Status</span><span class="info-val">${esc(c.status)}</span></div>
-        <div class="info-row"><span class="info-label">Banca Inicial</span><span class="info-val">R$${Number(c.banca).toLocaleString('pt-BR')}</span></div>
-        <div class="info-row"><span class="info-label">Banca Atual</span><span class="info-val" style="color:var(--green)">R$${(Number(c.banca) + c.lucro).toLocaleString('pt-BR')}</span></div>
+        <div class="info-row"><span class="info-label">Banca Inicial</span><span class="info-val">R$${Number(bancaInicial).toLocaleString('pt-BR')}</span></div>
+        <div class="info-row"><span class="info-label">Banca Atual</span><span class="info-val" style="color:var(--green)">R$${(Number(bancaInicial) + lucroExib).toLocaleString('pt-BR')}</span></div>
         <div class="info-row"><span class="info-label">Cadastro</span><span class="info-val">${new Date(c.cadastro).toLocaleDateString('pt-BR')}</span></div>
         <div class="info-row"><span class="info-label">Vencimento</span><span class="info-val">${vc.toLocaleDateString('pt-BR')}</span></div>
+        ${State.relatorios.length ? `<div class="info-row"><span class="info-label">Último relatório</span><span class="info-val" style="font-size:.6rem">${new Date(State.relatorios[0].data_upload).toLocaleDateString('pt-BR')}</span></div>` : ''}
       </div>
     </div>
 
@@ -123,7 +190,7 @@ function renderClientDashboard() {
     </div>` : ''}
   `;
 
-  _renderChart(hist);
+  _renderChart(histGrafico);
 }
 
 function _renderChart(hist) {
@@ -180,31 +247,75 @@ function _gerarHistoricoDemo(c) {
 
 /* ── OPERAÇÕES ── */
 function renderClientOps() {
-  const c = State.client;
-  const tableRows = c.historico.map(h => `
-    <tr>
-      <td>${esc(h.data)}</td>
-      <td style="font-family:'IBM Plex Mono',monospace">R$${h.banca?.toFixed(0) || '—'}</td>
-      <td style="color:${(h.lucro || 0) >= 0 ? 'var(--green)' : 'var(--red)'};font-family:'IBM Plex Mono',monospace">
-        ${(h.lucro || 0) >= 0 ? '+' : ''}R$${(h.lucro || 0).toFixed(2)}
-      </td>
-      <td style="color:var(--blue);font-family:'IBM Plex Mono',monospace">${(h.roi || 0).toFixed(1)}%</td>
-    </tr>`).join('');
+  const relatorios = State.relatorios || [];
+  const todasOps   = relatorios.flatMap(r =>
+    (r.operacoes || []).map(op => ({ ...op, nomeBot: r.nome_bot }))
+  );
 
-  document.getElementById('clientMain').innerHTML = `
-    <div style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:2px">OPERAÇÕES</div>
-    ${c.historico.length === 0 ? `
+  // Fallback para operações manuais antigas
+  const opsLegado = State.client.historico || [];
+
+  if (!todasOps.length && !opsLegado.length) {
+    document.getElementById('clientMain').innerHTML = `
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:2px">OPERAÇÕES</div>
       <div class="panel">
         <div class="empty"><div class="empty-icon">📋</div>Nenhuma operação registrada ainda.<br>Aguarde a configuração dos bots.</div>
-      </div>` : `
-      <div class="panel">
-        <div class="tbl-wrap">
-          <table>
-            <thead><tr><th>Data</th><th>Banca</th><th>Lucro</th><th>ROI</th></tr></thead>
-            <tbody>${tableRows}</tbody>
-          </table>
-        </div>
-      </div>`}
+      </div>`;
+    return;
+  }
+
+  // Tabs por bot se houver múltiplos relatórios
+  const bots = [...new Set(todasOps.map(o => o.nomeBot).filter(Boolean))];
+
+  const tableRows = (todasOps.length ? todasOps : opsLegado).map(op => {
+    const isGreen  = op.resultado === 'green' || (op.lucro >= 0);
+    const plVal    = op.netPl ?? op.lucro ?? 0;
+    const dataFmt  = op.data
+      ? new Date(op.data).toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit', year:'2-digit' })
+      : (op.data || '—');
+    return `
+      <tr>
+        <td style="font-family:'IBM Plex Mono',monospace;font-size:.65rem">${esc(dataFmt)}</td>
+        ${todasOps.length ? `<td style="font-size:.65rem;max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(op.evento || '—')}</td>` : ''}
+        ${todasOps.length ? `<td style="font-size:.6rem;color:var(--muted)">${esc(op.mercado || '—')}</td>` : ''}
+        ${todasOps.length ? `<td style="font-family:'IBM Plex Mono',monospace;font-size:.6rem">${esc(op.stake?.toFixed(0) || '—')}</td>` : ''}
+        <td style="font-family:'IBM Plex Mono',monospace;color:${isGreen ? 'var(--green)' : 'var(--red)'};font-weight:600">
+          ${isGreen ? '+' : ''}R$${Number(plVal).toFixed(2)}
+        </td>
+        <td>
+          <span style="font-size:.6rem;font-family:'IBM Plex Mono',monospace;color:${isGreen ? 'var(--green)' : 'var(--red)'};background:${isGreen ? 'rgba(0,229,160,.1)' : 'rgba(255,69,96,.1)'};padding:.2rem .5rem;border-radius:4px">
+            ${isGreen ? '● GREEN' : '● RED'}
+          </span>
+        </td>
+      </tr>`;
+  }).join('');
+
+  document.getElementById('clientMain').innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.5rem;margin-bottom:.5rem">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:2px">OPERAÇÕES</div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:.62rem;color:var(--muted)">
+        ${todasOps.length} ops · ${todasOps.filter(o=>o.resultado==='green').length} greens
+      </div>
+    </div>
+    ${bots.length > 1 ? `
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--muted);margin-bottom:.5rem">
+      ${bots.map(b => `<span style="background:var(--s2);border:1px solid var(--border2);border-radius:4px;padding:.2rem .6rem;margin-right:.3rem">${esc(b)}</span>`).join('')}
+    </div>` : ''}
+    <div class="panel">
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Data</th>
+              ${todasOps.length ? '<th>Evento</th><th>Mercado</th><th>Stake</th>' : ''}
+              <th>P&L</th>
+              <th>Resultado</th>
+            </tr>
+          </thead>
+          <tbody>${tableRows}</tbody>
+        </table>
+      </div>
+    </div>
   `;
 }
 
@@ -397,6 +508,213 @@ async function saveProfile() {
   } finally {
     if (btn) { btn.textContent = '💾 SALVAR CADASTRO →'; btn.disabled = false; }
   }
+}
+
+/* ── TIPS TELEGRAM ── */
+async function renderClientTips() {
+  const c = State.client;
+  const main = document.getElementById('clientMain');
+  main.innerHTML = '<div class="empty"><div class="empty-icon">⏳</div>Carregando tips...</div>';
+
+  const [tips, tipsCliente] = await Promise.all([getTips(), getTipsCliente(c.id)]);
+
+  // Mapa: tip_id → registro do cliente
+  const mapa = Object.fromEntries(tipsCliente.map(tc => [String(tc.tip_id), tc]));
+
+  // Separa pendentes e encerradas
+  const encerradas = tips.filter(t => t.resultado && t.resultado !== 'pendente')
+                         .sort((a,b) => new Date(b.data) - new Date(a.data));
+  const pendentes  = tips.filter(t => !t.resultado || t.resultado === 'pendente')
+                         .sort((a,b) => new Date(b.data) - new Date(a.data));
+
+  // KPIs do cliente
+  const pegadas     = encerradas.filter(t => mapa[String(t.id)]?.pegou);
+  const lucroCliente= pegadas.reduce((s,t) => s + (mapa[String(t.id)]?.pl || 0), 0);
+  const greensC     = pegadas.filter(t => (mapa[String(t.id)]?.pl || 0) > 0).length;
+  const winRateC    = pegadas.length ? ((greensC / pegadas.length)*100).toFixed(1) : 0;
+
+  // KPIs do canal (todas as tips)
+  const roiCanal    = encerradas.reduce((s,t) => s + (t.pl_stake||0), 0);
+  const winRateCanal= encerradas.length ? ((encerradas.filter(t=>t.pl_stake>0).length / encerradas.length)*100).toFixed(1) : 0;
+
+  // Banca padrão salva localmente
+  const bancaPadrao = parseFloat(localStorage.getItem(`ict_banca_padrao_${c.id}`) || '0');
+
+  main.innerHTML = `
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:2px">TIPS TELEGRAM</div>
+    <p style="font-size:.78rem;color:var(--muted2);margin-bottom:.5rem">Marque as tips que você pegou e acompanhe seu resultado pessoal.</p>
+
+    <!-- Banca padrão -->
+    <div class="panel" style="padding:.8rem 1rem;margin-bottom:.5rem">
+      <div style="display:flex;align-items:center;gap:.8rem;flex-wrap:wrap">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:.62rem;color:var(--muted)">STAKE PADRÃO (R$):</div>
+        <input type="number" id="banca-padrao-input" value="${bancaPadrao||''}" placeholder="Ex: 50"
+          style="width:120px;background:var(--s2);border:1px solid var(--border2);border-radius:6px;padding:.3rem .6rem;font-family:'IBM Plex Mono',monospace;font-size:.72rem;color:var(--fg)">
+        <button class="btn btn-sm" onclick="salvarBancaPadrao()">💾 SALVAR</button>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:.58rem;color:var(--muted2)">
+          Use um stake fixo para calcular automaticamente o lucro ao marcar as tips.
+        </div>
+      </div>
+    </div>
+
+    <!-- KPIs comparativo -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.8rem;margin-bottom:1rem">
+      <!-- Meu resultado -->
+      <div class="panel" style="border-color:var(--green2)">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:.55rem;letter-spacing:2px;color:var(--green);margin-bottom:.6rem">// MEU RESULTADO</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.4rem">
+          <div style="background:var(--s2);border-radius:8px;padding:.4rem .6rem;text-align:center">
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:.48rem;color:var(--muted)">TIPS PEGAS</div>
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:1rem;color:var(--green)">${pegadas.length}<span style="font-size:.6rem;color:var(--muted)">/${encerradas.length}</span></div>
+          </div>
+          <div style="background:var(--s2);border-radius:8px;padding:.4rem .6rem;text-align:center">
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:.48rem;color:var(--muted)">LUCRO</div>
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:1rem;color:${lucroCliente>=0?'var(--green)':'var(--red)'}">
+              ${lucroCliente>=0?'+':''}R$${lucroCliente.toFixed(0)}
+            </div>
+          </div>
+          <div style="background:var(--s2);border-radius:8px;padding:.4rem .6rem;text-align:center">
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:.48rem;color:var(--muted)">WIN RATE</div>
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:1rem;color:var(--blue)">${winRateC}%</div>
+          </div>
+          <div style="background:var(--s2);border-radius:8px;padding:.4rem .6rem;text-align:center">
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:.48rem;color:var(--muted)">GREENS</div>
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:1rem;color:var(--green)">${greensC}</div>
+          </div>
+        </div>
+      </div>
+      <!-- Resultado do canal -->
+      <div class="panel" style="border-color:var(--border)">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:.55rem;letter-spacing:2px;color:var(--muted);margin-bottom:.6rem">// RESULTADO DO CANAL</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.4rem">
+          <div style="background:var(--s2);border-radius:8px;padding:.4rem .6rem;text-align:center">
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:.48rem;color:var(--muted)">TOTAL TIPS</div>
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:1rem;color:var(--blue)">${encerradas.length}</div>
+          </div>
+          <div style="background:var(--s2);border-radius:8px;padding:.4rem .6rem;text-align:center">
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:.48rem;color:var(--muted)">ROI CANAL</div>
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:1rem;color:${roiCanal>=0?'var(--green)':'var(--red)'}">
+              ${roiCanal>=0?'+':''}${roiCanal.toFixed(2)}u
+            </div>
+          </div>
+          <div style="background:var(--s2);border-radius:8px;padding:.4rem .6rem;text-align:center">
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:.48rem;color:var(--muted)">WIN RATE</div>
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:1rem;color:var(--blue)">${winRateCanal}%</div>
+          </div>
+          <div style="background:var(--s2);border-radius:8px;padding:.4rem .6rem;text-align:center">
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:.48rem;color:var(--muted)">GREENS</div>
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:1rem;color:var(--green)">${encerradas.filter(t=>t.pl_stake>0).length}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tips pendentes -->
+    ${pendentes.length ? `
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:.6rem;letter-spacing:2px;color:var(--yellow);margin-bottom:.5rem">
+      // TIPS ABERTAS (${pendentes.length})
+    </div>
+    <div style="display:flex;flex-direction:column;gap:.5rem;margin-bottom:1rem">
+      ${pendentes.map(t => _cardTipCliente(t, mapa[String(t.id)], bancaPadrao)).join('')}
+    </div>` : ''}
+
+    <!-- Tips encerradas -->
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:.6rem;letter-spacing:2px;color:var(--muted);margin-bottom:.5rem">
+      // TIPS ENCERRADAS (${encerradas.length})
+    </div>
+    <div style="display:flex;flex-direction:column;gap:.5rem">
+      ${encerradas.map(t => _cardTipCliente(t, mapa[String(t.id)], bancaPadrao)).join('')}
+    </div>
+  `;
+}
+
+function _cardTipCliente(t, tc, bancaPadrao) {
+  const encerrada  = t.resultado && t.resultado !== 'pendente';
+  const pegou      = tc?.pegou || false;
+  const stakeVal   = tc?.stake ?? bancaPadrao ?? '';
+  const plVal      = tc?.pl ?? 0;
+  const resCorC    = t.resultado === 'green' ? 'var(--green)' : t.resultado === 'red' ? 'var(--red)' : 'var(--muted)';
+
+  return `
+    <div class="panel" style="border-color:${pegou ? (encerrada ? (plVal>=0?'var(--green)':'var(--red)') : 'var(--yellow)') : 'var(--border)'};padding:.8rem 1rem">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:.5rem;flex-wrap:wrap">
+        <div style="flex:1;min-width:0">
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:.58rem;color:var(--muted);margin-bottom:.2rem">
+            ${new Date(t.data).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'})} · ${esc(t.mercado||'—')}
+          </div>
+          <div style="font-size:.82rem;font-weight:600;margin-bottom:.2rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(t.evento||'—')}</div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--muted2)">
+            ${esc(t.selecao||'—')} &nbsp;·&nbsp; <span style="color:var(--blue)">Odd ${t.odd}</span>
+            ${encerrada ? `&nbsp;·&nbsp; <span style="color:${resCorC};font-weight:600">${t.resultado.toUpperCase()}</span>` : '&nbsp;·&nbsp; <span style="color:var(--yellow)">⏳ ABERTA</span>'}
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:.4rem;min-width:120px">
+          <label style="display:flex;align-items:center;gap:.4rem;cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:.65rem">
+            <input type="checkbox" id="pegou-${t.id}" ${pegou?'checked':''}
+              style="width:15px;height:15px;accent-color:var(--green);cursor:pointer"
+              onchange="toggleTipCliente('${t.id}', this.checked, ${bancaPadrao||0})">
+            PEGUEI ESSA
+          </label>
+          <div style="display:flex;align-items:center;gap:.4rem">
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:.58rem;color:var(--muted)">R$</span>
+            <input type="number" id="stake-${t.id}" value="${stakeVal}" placeholder="${bancaPadrao||'stake'}"
+              style="width:70px;background:var(--s2);border:1px solid var(--border2);border-radius:4px;padding:.2rem .4rem;font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--fg);text-align:right"
+              onchange="atualizarStakeTip('${t.id}', this.value, '${t.resultado||'pendente'}', ${t.odd||0}, ${t.pl_stake||0})">
+          </div>
+          ${pegou && encerrada ? `
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:1rem;color:${plVal>=0?'var(--green)':'var(--red)'}">
+            ${plVal>=0?'+':''}R$${Number(plVal).toFixed(2)}
+          </div>` : ''}
+        </div>
+      </div>
+    </div>`;
+}
+
+function salvarBancaPadrao() {
+  const val = parseFloat(document.getElementById('banca-padrao-input').value) || 0;
+  localStorage.setItem(`ict_banca_padrao_${State.client.id}`, val);
+  showToast(`✓ Stake padrão de R$${val} salvo!`);
+}
+
+async function toggleTipCliente(tipId, pegou, bancaPadrao) {
+  const c       = State.client;
+  const stakeEl = document.getElementById(`stake-${tipId}`);
+  const stake   = parseFloat(stakeEl?.value || bancaPadrao || 0);
+
+  // Busca resultado da tip para calcular pl
+  const tips = await getTips();
+  const tip  = tips.find(t => String(t.id) === String(tipId));
+  const pl   = pegou && tip ? stake * (tip.pl_stake || 0) : 0;
+
+  try {
+    // Verifica se já existe registro
+    const existentes = await sb.get('tips_clientes', { cliente_id: c.id, tip_id: tipId }).catch(()=>[]);
+    if (existentes?.length) {
+      await sb.update('tips_clientes', existentes[0].id, { pegou, stake, pl });
+    } else {
+      await sb.insert('tips_clientes', { cliente_id: c.id, tip_id: tipId, pegou, stake, pl });
+    }
+    showToast(pegou ? '✓ Tip marcada!' : 'Tip desmarcada.');
+    // Recarrega para atualizar KPIs
+    setTimeout(() => renderClientTips(), 400);
+  } catch { showToast('Erro ao salvar.', true); }
+}
+
+async function atualizarStakeTip(tipId, stakeStr, resultado, odd, plStake) {
+  const c     = State.client;
+  const stake = parseFloat(stakeStr) || 0;
+  const pegouEl = document.getElementById(`pegou-${tipId}`);
+  const pegou   = pegouEl?.checked || false;
+  const pl      = pegou ? stake * plStake : 0;
+
+  try {
+    const existentes = await sb.get('tips_clientes', { cliente_id: c.id, tip_id: tipId }).catch(()=>[]);
+    if (existentes?.length) {
+      await sb.update('tips_clientes', existentes[0].id, { stake, pl });
+    } else if (pegou) {
+      await sb.insert('tips_clientes', { cliente_id: c.id, tip_id: tipId, pegou, stake, pl });
+    }
+  } catch { /* silencioso */ }
 }
 
 /* ── PLANOS ── */
