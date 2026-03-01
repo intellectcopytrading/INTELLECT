@@ -136,13 +136,148 @@ async function renderAdminDashboard() {
       </div>
     </div>
 
+    <div class="panel" style="padding:1.2rem 1.4rem;margin-bottom:.2rem">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:.5rem">
+        <div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:.55rem;letter-spacing:3px;color:var(--green);margin-bottom:.2rem">// PERFORMANCE ACUMULADA</div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:1px">P&L ACUMULADO DO CANAL</div>
+        </div>
+        <div style="display:flex;gap:.5rem">
+          <button onclick="adminChartFiltro(30,this)" class="btn btn-sm" style="font-size:.58rem;padding:.25rem .7rem;background:var(--green);color:#060910">30d</button>
+          <button onclick="adminChartFiltro(90,this)" class="btn btn-sm btn-ghost" style="font-size:.58rem;padding:.25rem .7rem">90d</button>
+          <button onclick="adminChartFiltro(0,this)"  class="btn btn-sm btn-ghost" style="font-size:.58rem;padding:.25rem .7rem">Tudo</button>
+        </div>
+      </div>
+      <canvas id="adminChart" style="width:100%;max-height:260px"></canvas>
+    </div>
+
     <div style="font-family:'IBM Plex Mono',monospace;font-size:.6rem;letter-spacing:2px;color:var(--muted)">
       // CLIENTES — clique para editar
     </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1rem">
       ${cards}
     </div>
-  `;
+  \`;
+
+  // Renderiza gráfico após inserir HTML
+  setTimeout(() => _renderAdminChart(30), 50);
+}
+
+/* ── GRÁFICO ADMIN ── */
+let _adminTipsData = [];
+
+async function _renderAdminChart(dias) {
+  try {
+    const tips = await getTips();
+    // Filtra só encerradas com data e pl_stake
+    _adminTipsData = tips
+      .filter(t => t.resultado && t.resultado !== 'aberta' && t.pl_stake != null && t.data)
+      .sort((a,b) => new Date(a.data) - new Date(b.data));
+
+    _desenharAdminChart(dias);
+  } catch(e) { console.error('[adminChart]', e); }
+}
+
+function adminChartFiltro(dias, btn) {
+  document.querySelectorAll('#adminMain .btn-sm').forEach(b => {
+    b.style.background = '';
+    b.style.color = '';
+    b.classList.add('btn-ghost');
+  });
+  btn.classList.remove('btn-ghost');
+  btn.style.background = 'var(--green)';
+  btn.style.color = '#060910';
+  _desenharAdminChart(dias);
+}
+
+function _desenharAdminChart(dias) {
+  const canvas = document.getElementById('adminChart');
+  if (!canvas) return;
+
+  let dados = _adminTipsData;
+  if (dias > 0) {
+    const corte = new Date(Date.now() - dias * 86_400_000);
+    dados = dados.filter(t => new Date(t.data) >= corte);
+  }
+
+  if (!dados.length) return;
+
+  // Acumula P&L
+  let acum = 0;
+  const labels = [];
+  const values = [];
+  const colors = [];
+
+  dados.forEach(t => {
+    acum = parseFloat((acum + (t.pl_stake || 0)).toFixed(4));
+    labels.push(new Date(t.data).toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit' }));
+    values.push(acum);
+    colors.push(acum >= 0 ? 'rgba(0,229,160,0.8)' : 'rgba(255,77,79,0.8)');
+  });
+
+  const ultimo = values[values.length - 1] || 0;
+  const cor    = ultimo >= 0 ? '#00e5a0' : '#ff4d4f';
+
+  // Destroi chart anterior se existir
+  if (window._adminChartInst) { window._adminChartInst.destroy(); }
+
+  window._adminChartInst = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: 'P&L Acumulado (u)',
+        data: values,
+        borderColor: cor,
+        backgroundColor: ultimo >= 0 ? 'rgba(0,229,160,0.06)' : 'rgba(255,77,79,0.06)',
+        borderWidth: 2,
+        pointRadius: dados.length > 100 ? 0 : 3,
+        pointBackgroundColor: colors,
+        pointBorderColor: colors,
+        fill: true,
+        tension: 0.3,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#0e1420',
+          borderColor: '#1e2535',
+          borderWidth: 1,
+          titleColor: '#8892a4',
+          bodyColor: cor,
+          titleFont: { family: "'IBM Plex Mono'" },
+          bodyFont: { family: "'IBM Plex Mono'", size: 13 },
+          callbacks: {
+            label: ctx => ` ${ctx.parsed.y >= 0 ? '+' : ''}${ctx.parsed.y.toFixed(2)}u`,
+          }
+        },
+      },
+      scales: {
+        x: {
+          ticks: {
+            color: '#4a5568',
+            font: { family: "'IBM Plex Mono'", size: 10 },
+            maxTicksLimit: 12,
+          },
+          grid: { color: 'rgba(255,255,255,0.03)' },
+        },
+        y: {
+          ticks: {
+            color: '#4a5568',
+            font: { family: "'IBM Plex Mono'", size: 10 },
+            callback: v => (v >= 0 ? '+' : '') + v.toFixed(1) + 'u',
+          },
+          grid: { color: 'rgba(255,255,255,0.05)' },
+          border: { dash: [4,4] },
+        }
+      }
+    }
+  });
 }
 
 function _botsAtivosCliente(c) {
