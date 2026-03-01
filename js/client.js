@@ -487,7 +487,7 @@ async function saveProfile() {
   if (btn) { btn.textContent = 'SALVANDO...'; btn.disabled = true; }
 
   const patch = { nome, whats, plano, banca, bf_login: bfLogin, bf_senha: bfSenha };
-  if (newSenha) patch.senha = newSenha;
+  if (newSenha) patch.senha = await sha256(newSenha);
 
   try {
     const result  = await sb.update('clientes', State.client.id, patch);
