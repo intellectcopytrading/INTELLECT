@@ -3,9 +3,9 @@
 ════════════════════════════════════════════════ */
 
 /* ── NAVEGAÇÃO DE TELAS DE AUTH ── */
-function showLogin()     { show('screenLogin'); }
-function showRegister()  { show('screenRegister'); }
-function showAdminLogin(){
+function showLogin()      { show('screenLogin'); }
+function showRegister()   { show('screenRegister'); }
+function showAdminLogin() {
   show('screenAdminLogin');
   setTimeout(() => document.getElementById('admin-pwd').focus(), 100);
 }
@@ -55,7 +55,7 @@ async function doLogin() {
     if (!rows?.length) {
       errEl.textContent = 'Email não encontrado. Verifique ou crie uma conta.';
       errEl.classList.add('show');
-      return; // finally ainda executa — botão é resetado corretamente
+      return;
     }
 
     const senhaHash = await sha256(senha);
@@ -66,18 +66,20 @@ async function doLogin() {
         tentativa.bloqueadoAte = Date.now() + 60_000;
         tentativa.count = 0;
       }
-      errEl.textContent = `Senha incorreta. ${5 - tentativa.count > 0 ? `(${5 - tentativa.count} tentativas restantes)` : ''}`;
+      const restantes = 5 - tentativa.count;
+      errEl.textContent = `Senha incorreta.${restantes > 0 ? ` (${restantes} tentativas restantes)` : ''}`;
       errEl.classList.add('show');
       return;
     }
 
-    // Login bem sucedido — reseta tentativas
+    // Login bem-sucedido — reseta tentativas
     _loginAttempts[email] = { count: 0, bloqueadoAte: 0 };
-    }
 
     const hist = await sb.get('historico', { cliente_id: clientRow.id }).catch(() => []);
     const client = mapClient(clientRow);
-    client.historico = (hist || []).map(h => ({ data: h.data, banca: h.banca, lucro: h.lucro, roi: h.roi }));
+    client.historico = (hist || []).map(h => ({
+      data: h.data, banca: h.banca, lucro: h.lucro, roi: h.roi,
+    }));
 
     Session.save({ type: 'client', id: clientRow.id, email });
     document.getElementById('login-senha').value = '';
@@ -107,9 +109,9 @@ async function doRegister() {
   errEl.classList.remove('show');
 
   const validations = [
-    [!email || !senha,       'Preencha email e senha.'],
-    [senha.length < 6,       'Senha mínima de 6 caracteres.'],
-    [senha !== senha2,       'As senhas não conferem.'],
+    [!email || !senha,  'Preencha email e senha.'],
+    [senha.length < 6,  'Senha mínima de 6 caracteres.'],
+    [senha !== senha2,  'As senhas não conferem.'],
   ];
   for (const [cond, msg] of validations) {
     if (cond) { errEl.textContent = msg; errEl.classList.add('show'); return; }
@@ -119,10 +121,12 @@ async function doRegister() {
 
   try {
     const senhaHash = await sha256(senha);
-    const inserted = await sb.insert('clientes', {
-      email, senha: senhaHash,
+    const inserted  = await sb.insert('clientes', {
+      email,
+      senha: senhaHash,
       nome: '', whats: '', plano: '', banca: 0,
-      bf_login: '', bf_senha: '', status: 'Pendente',
+      bf_login: '', bf_senha: '',
+      status: 'Pendente',
       bot_ativo: false, bot_e1: false, bot_e2: false, bot_e3: false,
       roi: 0, lucro: 0, ops: 0,
       vencimento: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
@@ -132,7 +136,9 @@ async function doRegister() {
     if (!novo) throw new Error('Erro ao criar conta.');
 
     Session.save({ type: 'client', id: novo.id, email });
-    ['reg-senha', 'reg-senha2', 'reg-email'].forEach(id => { document.getElementById(id).value = ''; });
+    ['reg-senha', 'reg-senha2', 'reg-email'].forEach(id => {
+      document.getElementById(id).value = '';
+    });
 
     showToast('✓ Conta criada! Complete seu cadastro.');
     loadClientDashboard(mapClient(novo));
@@ -162,9 +168,9 @@ async function doAdminLogin() {
 
   errEl.classList.remove('show');
 
-  // Compara hash SHA-256 — senha nunca fica em texto plano no código
   const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pwd));
-  const hashHex    = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+  const hashHex    = Array.from(new Uint8Array(hashBuffer))
+    .map(b => b.toString(16).padStart(2, '0')).join('');
 
   if (hashHex !== CONFIG.ADMIN_PWD_HASH) {
     errEl.textContent = 'Senha incorreta.';
@@ -229,17 +235,18 @@ function startRealtime(clientId) {
     try {
       if (!State.client || State.client.id !== clientId) return;
       const rows = await sb.get('clientes', { id: clientId });
-      if (!State.client || State.client.id !== clientId) return; // verificação pós-await
+      if (!State.client || State.client.id !== clientId) return;
       if (!rows?.[0]) return;
 
-      const upd = mapClient(rows[0]);
+      const upd     = mapClient(rows[0]);
       upd.historico = State.client.historico;
-
-      const wasBot = State.client.botAtivo;
-      State.client = upd;
+      const wasBot  = State.client.botAtivo;
+      State.client  = upd;
 
       const nameEl = document.getElementById('topbar-name');
-      if (nameEl) nameEl.textContent = upd.nome ? upd.nome.split(' ')[0] : upd.email.split('@')[0];
+      if (nameEl) nameEl.textContent = upd.nome
+        ? upd.nome.split(' ')[0]
+        : upd.email.split('@')[0];
 
       if (wasBot !== upd.botAtivo) {
         const activeNav = document.querySelector('#appClient .nav-item.active');
@@ -267,9 +274,11 @@ function startRealtime(clientId) {
     try {
       const rows = await sb.get('clientes', { id: session.id });
       if (rows?.[0]) {
-        const hist = await sb.get('historico', { cliente_id: session.id }).catch(() => []);
+        const hist   = await sb.get('historico', { cliente_id: session.id }).catch(() => []);
         const client = mapClient(rows[0]);
-        client.historico = (hist || []).map(h => ({ data: h.data, banca: h.banca, lucro: h.lucro, roi: h.roi }));
+        client.historico = (hist || []).map(h => ({
+          data: h.data, banca: h.banca, lucro: h.lucro, roi: h.roi,
+        }));
         loadClientDashboard(client);
         startRealtime(session.id);
         requestNotificationPermission();
