@@ -22,6 +22,7 @@ function adminClick() {
 }
 
 /* ── LOGIN CLIENTE ── */
+const _loginAttempts = {};
 async function doLogin() {
   const email = document.getElementById('login-email').value.trim().toLowerCase();
   const senha = document.getElementById('login-senha').value;
@@ -31,6 +32,17 @@ async function doLogin() {
   errEl.classList.remove('show');
   if (!email || !senha) {
     errEl.textContent = 'Preencha email e senha.';
+    errEl.classList.add('show');
+    return;
+  }
+
+  // Rate limit — bloqueia por 60s após 5 tentativas
+  const agora = Date.now();
+  if (!_loginAttempts[email]) _loginAttempts[email] = { count: 0, bloqueadoAte: 0 };
+  const tentativa = _loginAttempts[email];
+  if (agora < tentativa.bloqueadoAte) {
+    const seg = Math.ceil((tentativa.bloqueadoAte - agora) / 1000);
+    errEl.textContent = `Muitas tentativas. Aguarde ${seg}s.`;
     errEl.classList.add('show');
     return;
   }
@@ -46,11 +58,21 @@ async function doLogin() {
       return; // finally ainda executa — botão é resetado corretamente
     }
 
-    const clientRow = rows.find(c => c.senha === senha);
+    const senhaHash = await sha256(senha);
+    const clientRow = rows.find(c => c.senha === senhaHash);
     if (!clientRow) {
-      errEl.textContent = 'Senha incorreta.';
+      tentativa.count++;
+      if (tentativa.count >= 5) {
+        tentativa.bloqueadoAte = Date.now() + 60_000;
+        tentativa.count = 0;
+      }
+      errEl.textContent = `Senha incorreta. ${5 - tentativa.count > 0 ? `(${5 - tentativa.count} tentativas restantes)` : ''}`;
       errEl.classList.add('show');
-      return; // finally ainda executa
+      return;
+    }
+
+    // Login bem sucedido — reseta tentativas
+    _loginAttempts[email] = { count: 0, bloqueadoAte: 0 };
     }
 
     const hist = await sb.get('historico', { cliente_id: clientRow.id }).catch(() => []);
@@ -96,8 +118,9 @@ async function doRegister() {
   btn.textContent = 'AGUARDE...'; btn.disabled = true;
 
   try {
+    const senhaHash = await sha256(senha);
     const inserted = await sb.insert('clientes', {
-      email, senha,
+      email, senha: senhaHash,
       nome: '', whats: '', plano: '', banca: 0,
       bf_login: '', bf_senha: '', status: 'Pendente',
       bot_ativo: false, bot_e1: false, bot_e2: false, bot_e3: false,
