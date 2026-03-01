@@ -1,37 +1,30 @@
 /* ════════════════════════════════════════════════
    js/config.js — Constantes e configurações globais
-
    ⚠️  SEGURANÇA:
    A SUPABASE_KEY exposta aqui é a chave anon pública.
    Isso é aceitável SOMENTE se você configurar Row Level
    Security (RLS) no Supabase. Veja README.md.
-
    NUNCA coloque a service_role key no frontend.
    NUNCA suba a ADMIN_PWD para um repositório público.
 ════════════════════════════════════════════════ */
-
 const CONFIG = Object.freeze({
   SUPABASE_URL: 'https://refmtoahyxldnyejwkwt.supabase.co',
   SUPABASE_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJlZm10b2FoeXhsZG55ZWp3a3d0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIyNzg5NjgsImV4cCI6MjA4Nzg1NDk2OH0.zJwSQcP5_KMubQhyUvfrmGfPe-Gr-dAi8uLBiourWMg',
-
-  // Hash SHA-256 da senha admin (gerado fora do código).
-  // Para trocar a senha: calcule sha256 da nova senha e atualize apenas este hash.
-  // Ex: await crypto.subtle.digest('SHA-256', new TextEncoder().encode('suaSenha'))
-  ADMIN_PWD_HASH: 'ba354a8f6f7c7604676078d482fdc5bfb519201824383ab756ff9623ff436c39', // sha256 da senha admin
-
+  ADMIN_PWD_HASH: 'ba354a8f6f7c7604676078d482fdc5bfb519201824383ab756ff9623ff436c39',
   PIX_KEY:   '07bc03ad-72bf-41f1-bf4f-585bcbd2324e',
   WPP_ADMIN: '5597991637163',
   VALOR_BOT: 117,
-
-  SESSION_TTL: 8 * 60 * 60 * 1000, // 8 horas em ms
+  SESSION_TTL: 8 * 60 * 60 * 1000,
   SESSION_KEY: 'ict_session',
-  REALTIME_INTERVAL_MS: 60_000,    // polling a cada 60s
+  REALTIME_INTERVAL_MS: 60_000,
 });
 
 const PLANOS = Object.freeze([
-  { value: 'Telegram - R$97/mês',           label: 'Telegram · R$97/mês' },
+  { value: 'Tips - R$97/mês',                  label: 'Tips · R$97/mês' },
   { value: 'Bot por Estratégia - R$117 + 10%', label: 'Bot · R$117 + 10%' },
-  { value: 'Anual - R$1.997 + 15%',         label: 'Anual · R$1.997 + 15%' },
+  { value: 'Anual - R$1.997 + 15%',            label: 'Anual · R$1.997 + 15%' },
+  // Legado — mantido para compatibilidade com clientes antigos
+  { value: 'Telegram - R$97/mês',              label: 'Telegram · R$97/mês (legado)' },
 ]);
 
 const ESTRATEGIAS = Object.freeze([
@@ -51,3 +44,10 @@ const ESTRATEGIAS = Object.freeze([
     desc: 'Operações no mercado de Match Odds com análise de valor esperado e automação completa.',
   },
 ]);
+
+/* ── helper global: verifica se cliente tem acesso a Tips ── */
+function clienteTemTips(plano) {
+  if (!plano) return false;
+  return plano.includes('Tips') || plano.includes('Telegram') ||
+         plano.includes('Anual') || plano.includes('Bot');
+}
