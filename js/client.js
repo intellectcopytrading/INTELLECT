@@ -177,6 +177,22 @@ async function renderClientDashboard() {
       </div>
     </div>
 
+    ${isTips ? `
+    <div class="panel" style="padding:1.2rem 1.4rem">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:.5rem">
+        <div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:.55rem;letter-spacing:3px;color:var(--green);margin-bottom:.2rem">// CANAL</div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:1px">P&L ACUMULADO DO CANAL</div>
+        </div>
+        <div style="display:flex;gap:.4rem">
+          <button onclick="clientChartFiltro('canal',30,this)" class="btn btn-sm" style="font-size:.55rem;padding:.2rem .6rem;background:var(--green);color:#060910">30d</button>
+          <button onclick="clientChartFiltro('canal',90,this)" class="btn btn-sm btn-ghost" style="font-size:.55rem;padding:.2rem .6rem">90d</button>
+          <button onclick="clientChartFiltro('canal',0,this)"  class="btn btn-sm btn-ghost" style="font-size:.55rem;padding:.2rem .6rem">Tudo</button>
+        </div>
+      </div>
+      <canvas id="canalChart" style="width:100%;max-height:220px"></canvas>
+    </div>` : ''}
+
     ${diasRestantes <= 7 ? `
     <div style="background:rgba(255,69,96,.07);border:1px solid rgba(255,69,96,.2);border-radius:10px;padding:1rem 1.3rem;font-family:'IBM Plex Mono',monospace;font-size:.72rem;color:var(--red)">
       ⚠️ Seu plano vence em <strong>${diasRestantes} dias</strong>. Entre em contato para renovar.
@@ -185,6 +201,7 @@ async function renderClientDashboard() {
   `;
 
   _renderChart(histGrafico);
+  if (isTips) setTimeout(() => _renderCanalChart(30), 80);
 }
 
 function _renderChart(hist) {
@@ -507,9 +524,7 @@ async function renderClientTips() {
   const mapa = Object.fromEntries(tipsCliente.map(tc => [String(tc.tip_id), tc]));
 
   const encerradas = tips.filter(t => t.resultado && t.resultado !== 'aberta' && t.resultado !== 'pendente')
-                         .sort((a,b) => new Date(b.data) - new Date(a.data));
-  const pendentes  = tips.filter(t => !t.resultado || t.resultado === 'aberta' || t.resultado === 'pendente')
-                         .sort((a,b) => new Date(b.data) - new Date(a.data));
+                         .sort((a,b) => new Date(b.data||b.created_at) - new Date(a.data||a.created_at));
 
   const pegadas      = encerradas.filter(t => mapa[String(t.id)]?.pegou);
   const lucroCliente = pegadas.reduce((s,t) => s + (mapa[String(t.id)]?.pl || 0), 0);
@@ -586,21 +601,49 @@ async function renderClientTips() {
       </div>
     </div>
 
-    ${pendentes.length ? `
-    <div style="font-family:'IBM Plex Mono',monospace;font-size:.6rem;letter-spacing:2px;color:var(--yellow);margin-bottom:.5rem">
-      // TIPS ABERTAS (${pendentes.length})
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.8rem;margin-bottom:.8rem">
+      <div class="panel" style="padding:1rem">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.7rem;flex-wrap:wrap;gap:.3rem">
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:.52rem;letter-spacing:2px;color:var(--green)">// P&L CANAL (u)</div>
+          <div style="display:flex;gap:.3rem">
+            <button onclick="clientChartFiltro('canal',30,this)" class="btn btn-sm" style="font-size:.5rem;padding:.15rem .5rem;background:var(--green);color:#060910">30d</button>
+            <button onclick="clientChartFiltro('canal',0,this)"  class="btn btn-sm btn-ghost" style="font-size:.5rem;padding:.15rem .5rem">Tudo</button>
+          </div>
+        </div>
+        <canvas id="canalChart" style="width:100%;max-height:160px"></canvas>
+      </div>
+      <div class="panel" style="padding:1rem">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.7rem;flex-wrap:wrap;gap:.3rem">
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:.52rem;letter-spacing:2px;color:var(--blue)">// MEU P&L (R$)</div>
+          <div style="display:flex;gap:.3rem">
+            <button onclick="clientChartFiltro('pessoal',30,this)" class="btn btn-sm" style="font-size:.5rem;padding:.15rem .5rem;background:var(--blue);color:#060910">30d</button>
+            <button onclick="clientChartFiltro('pessoal',0,this)"  class="btn btn-sm btn-ghost" style="font-size:.5rem;padding:.15rem .5rem">Tudo</button>
+          </div>
+        </div>
+        <canvas id="pessoalChart" style="width:100%;max-height:160px"></canvas>
+      </div>
     </div>
-    <div style="display:flex;flex-direction:column;gap:.5rem;margin-bottom:1rem">
-      ${pendentes.map(t => _cardTipCliente(t, mapa[String(t.id)], bancaPadrao)).join('')}
-    </div>` : ''}
 
     <div style="font-family:'IBM Plex Mono',monospace;font-size:.6rem;letter-spacing:2px;color:var(--muted);margin-bottom:.5rem">
-      // TIPS ENCERRADAS (${encerradas.length})
+      // HISTÓRICO DE TIPS (${encerradas.length})
     </div>
     <div style="display:flex;flex-direction:column;gap:.5rem">
-      ${encerradas.length ? encerradas.map(t => _cardTipCliente(t, mapa[String(t.id)], bancaPadrao)).join('') : '<div class="panel"><div class="empty">Nenhuma tip encerrada ainda.</div></div>'}
+      ${encerradas.length ? encerradas.map(t => _cardTipCliente(t, mapa[String(t.id)], bancaPadrao)).join('') : '<div class="panel"><div class="empty">Nenhuma tip registrada ainda.</div></div>'}
     </div>
   `;
+
+  // Dados para os gráficos
+  window._tipsCanalData   = encerradas;
+  window._tipsPessoalData = encerradas.map(t => ({
+    data:    t.data,
+    pl:      mapa[String(t.id)]?.pl ?? null,
+    pegou:   mapa[String(t.id)]?.pegou || false,
+  }));
+
+  setTimeout(() => {
+    _renderCanalChart(30);
+    _renderPessoalChart(30);
+  }, 80);
 }
 
 function _cardTipCliente(t, tc, bancaPadrao) {
@@ -620,7 +663,7 @@ function _cardTipCliente(t, tc, bancaPadrao) {
           </div>
           <div style="font-size:.82rem;font-weight:600;margin-bottom:.2rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(t.evento||'—')}</div>
           <div style="font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--muted2)">
-            ${esc(t.selecao||'—')} &nbsp;·&nbsp; <span style="color:var(--blue)">Odd ${t.odd||'—'}</span>
+            ${esc(t.selecao||t.mercado||'—')} &nbsp;·&nbsp; <span style="color:var(--blue)">Odd ${t.odd||'—'}</span>
             ${encerrada ? `&nbsp;·&nbsp; <span style="color:${resCorC};font-weight:600">${t.resultado.toUpperCase()}</span>` : '&nbsp;·&nbsp; <span style="color:var(--yellow)">⏳ ABERTA</span>'}
           </div>
         </div>
@@ -644,6 +687,138 @@ function _cardTipCliente(t, tc, bancaPadrao) {
         </div>
       </div>
     </div>`;
+}
+
+
+/* ── GRÁFICOS DE TIPS ── */
+let _tipsCanalData   = [];
+let _tipsPessoalData = [];
+
+function clientChartFiltro(tipo, dias, btn) {
+  const prefix = tipo === 'canal' ? 'canalChart' : 'pessoalChart';
+  // Reset botões do mesmo grupo
+  const panel = btn.closest('.panel');
+  if (panel) panel.querySelectorAll('.btn-sm').forEach(b => {
+    b.style.background = ''; b.style.color = ''; b.classList.add('btn-ghost');
+  });
+  btn.classList.remove('btn-ghost');
+  btn.style.background = tipo === 'canal' ? 'var(--green)' : 'var(--blue)';
+  btn.style.color = '#060910';
+  if (tipo === 'canal')   _renderCanalChart(dias);
+  else                    _renderPessoalChart(dias);
+}
+
+function _filtrarPorDias(dados, dias) {
+  if (!dias) return dados;
+  const corte = new Date(Date.now() - dias * 86_400_000);
+  return dados.filter(d => d.data && new Date(d.data) >= corte);
+}
+
+function _criarChartConfig(labels, values, cor, labelFn) {
+  const ultimo = values[values.length - 1] ?? 0;
+  const corFinal = ultimo >= 0 ? cor : '#ff4d4f';
+  return {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        data: values,
+        borderColor: corFinal,
+        backgroundColor: ultimo >= 0
+          ? (cor === '#00e5a0' ? 'rgba(0,229,160,0.07)' : 'rgba(56,182,255,0.07)')
+          : 'rgba(255,77,79,0.07)',
+        borderWidth: 2,
+        pointRadius: values.length > 80 ? 0 : 3,
+        pointBackgroundColor: corFinal,
+        fill: true,
+        tension: 0.35,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#0e1420', borderColor: '#1e2535', borderWidth: 1,
+          titleColor: '#8892a4', bodyColor: corFinal,
+          titleFont: { family: "'IBM Plex Mono'", size: 9 },
+          bodyFont:  { family: "'IBM Plex Mono'", size: 11 },
+          callbacks: { label: ctx => labelFn(ctx.parsed.y) }
+        },
+      },
+      scales: {
+        x: {
+          ticks: { color: '#4a5568', font: { family: "'IBM Plex Mono'", size: 9 }, maxTicksLimit: 8 },
+          grid:  { color: 'rgba(255,255,255,0.03)' },
+        },
+        y: {
+          ticks: { color: '#4a5568', font: { family: "'IBM Plex Mono'", size: 9 }, callback: v => labelFn(v) },
+          grid:  { color: 'rgba(255,255,255,0.05)' },
+          border: { dash: [4,4] },
+        }
+      }
+    }
+  };
+}
+
+function _renderCanalChart(dias) {
+  const canvas = document.getElementById('canalChart');
+  if (!canvas) return;
+  const fonte = window._tipsCanalData || [];
+  const dados = _filtrarPorDias(
+    fonte.filter(t => t.resultado && t.pl_stake != null && t.data)
+         .sort((a,b) => new Date(a.data) - new Date(b.data)),
+    dias
+  );
+  if (!dados.length) return;
+
+  let acum = 0;
+  const labels = [], values = [];
+  dados.forEach(t => {
+    acum = parseFloat((acum + (t.pl_stake || 0)).toFixed(4));
+    labels.push(new Date(t.data).toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit' }));
+    values.push(acum);
+  });
+
+  if (window._canalChartInst) window._canalChartInst.destroy();
+  window._canalChartInst = new Chart(canvas,
+    _criarChartConfig(labels, values, '#00e5a0', v => (v >= 0 ? '+' : '') + v.toFixed(2) + 'u')
+  );
+}
+
+function _renderPessoalChart(dias) {
+  const canvas = document.getElementById('pessoalChart');
+  if (!canvas) return;
+  const fonte = window._tipsPessoalData || [];
+  const dados = _filtrarPorDias(
+    fonte.filter(d => d.pegou && d.pl != null && d.data)
+         .sort((a,b) => new Date(a.data) - new Date(b.data)),
+    dias
+  );
+  if (!dados.length) {
+    // Mostra mensagem vazia no canvas
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#4a5568';
+    ctx.font = "11px 'IBM Plex Mono'";
+    ctx.textAlign = 'center';
+    ctx.fillText('Marque tips para ver seu gráfico', canvas.width / 2, canvas.height / 2);
+    return;
+  }
+
+  let acum = 0;
+  const labels = [], values = [];
+  dados.forEach(d => {
+    acum = parseFloat((acum + (d.pl || 0)).toFixed(2));
+    labels.push(new Date(d.data).toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit' }));
+    values.push(acum);
+  });
+
+  if (window._pessoalChartInst) window._pessoalChartInst.destroy();
+  window._pessoalChartInst = new Chart(canvas,
+    _criarChartConfig(labels, values, '#38b6ff', v => (v >= 0 ? '+' : '') + 'R$' + Math.abs(v).toFixed(0))
+  );
 }
 
 function salvarBancaPadrao() {
